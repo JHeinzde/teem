@@ -43,3 +43,6 @@ Microprograms:
     InstrLoad: None
     InstrStore: None
     InstrBranch: None
+
+Rollback: 
+   Snapshots: False

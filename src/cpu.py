@@ -115,7 +115,8 @@ class CPU:
         global _snapshots
         self._snapshot_index = 0
         _snapshots = []
-        _snapshots.append(copy.deepcopy(self))
+        if self._config["Rollback"]["Snapshots"] is True:
+            _snapshots.append(copy.deepcopy(self))
 
     def load_program_from_file(self, path: str):
         """Loads a program given a file path."""
@@ -298,6 +299,10 @@ class CPU:
         list is not part of the CPU class.
         """
         global _snapshots
+
+
+        if self._config["Rollback"]["Snapshots"] is False:
+            return
 
         if self._snapshot_index < len(_snapshots) - 1:
             # The snapshot index is not pointing to the last snapshot in the list.
