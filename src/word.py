@@ -199,6 +199,11 @@ class Word:
     def signed_ge(self, rhs: "Word") -> bool:
         return self.signed_value >= rhs.signed_value
 
+    def hamming_weight(self) -> int:
+        return self.value.bit_count()
+
+    def hamming_difference(self, other: "Word") -> int:
+        return self.__xor__(other).hamming_weight()
 
 def div_trunc(a: int, b: int) -> int:
     """

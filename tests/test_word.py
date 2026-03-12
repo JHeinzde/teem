@@ -67,3 +67,13 @@ class WordTest(TestCase):
             aa, ab = Word(a).value, Word(b).value
             self.assertEqual(div_trunc(aa, ab), aa // ab)
             self.assertEqual(rem_trunc(aa, ab), aa % ab)
+
+    def test_hamming_difference(self):
+        a = Word.from_int(1)
+        b = Word.from_int(15)
+        c = Word.from_int(16)
+
+        self.assertEqual(a.hamming_difference(b), 3)
+        self.assertEqual(a.hamming_difference(c), 2)
+        self.assertEqual(b.hamming_difference(c), 5)
+        self.assertEqual(b.hamming_difference(c), c.hamming_difference(b))
