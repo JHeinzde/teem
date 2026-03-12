@@ -181,7 +181,7 @@ def d_switch_section(parser: Parser, name: str, ops: list[str]):
 def d_emit_strings(parser: Parser, name: str, ops: list[str]):
     suffix = b'' if name == '.ascii' else b'\0'
     for text in ops:
-        parser.emit_data(text.encode('ascii') + suffix)
+        parser.emit_data(text.encode('latin-1') + suffix)
 
 
 @directive('.byte')
@@ -657,6 +657,12 @@ class Parser:
         self.text_section.append(result)
         return result
 
+    def read_ascii_directive(self, line: str) -> list[str]:
+        first_quote = line.find("\"")
+        last_quote = line.rfind("\"", first_quote)
+
+        return [literal_eval(line[first_quote:last_quote+1])]
+
     def read_operands(self, ops_str: str) -> list[str]:
         """Decode the given list of instruction or directive operands."""
         if not ops_str or ops_str.isspace():
@@ -669,7 +675,6 @@ class Parser:
             if not m:
                 raise self.error(f'Invalid operand #{len(result) + 1}: {ops_str[index:]!r}')
             index = m.end()
-
             raw_value = m.group('value')
             if raw_value.startswith('"'):
                 try:
@@ -694,7 +699,11 @@ class Parser:
                 self.make_label(label)
 
             if instr:
-                operands = self.read_operands(raw_operands or '')
+
+                if instr == ".ascii":
+                    operands = self.read_ascii_directive(line)
+                else:
+                    operands = self.read_operands(raw_operands or '')
 
                 if instr.startswith('.'):
                     self.parse_directive(instr, operands)
