@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from functools import wraps
 from typing import List, Literal, NewType, Optional, TypeVar, Union, cast, final
 
 from .bpu import AbstractBPU, AbstractBTB
@@ -40,6 +41,15 @@ _SlotID = NewType("_SlotID", int)
 # Either a `Word` with a concrete value, or a `_SlotID` referencing the slot that will produce the
 # value
 _WordOrSlot = Union[Word, _SlotID]
+
+
+def power_draw(func):
+    print("JA MOIN")
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        print(type(self))
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 @dataclass
@@ -147,6 +157,7 @@ class _Slot:
         """Notify this slot that the given slot retired without causing a fault."""
 
     @final
+    @power_draw
     def tick_execute(self) -> None:
         """Continue executing this slot, return its result if it finished executing."""
         assert self.stage == "executing"
