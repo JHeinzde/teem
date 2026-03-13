@@ -27,6 +27,7 @@ class InstructionKind(ABC):
 
     operand_types: list[OperandKind]
     name: str
+    base_power_draw: float
 
     def __init__(self, name: str):
         self.name = name
@@ -41,6 +42,10 @@ class InstructionKind(ABC):
     @abstractmethod
     def destination(self) -> Optional[int]:
         """Return the index of the destination operand, if any."""
+
+    #@abstractmethod
+    #def power_draw(self):
+    #    """Return the power draw of the instruction based on our generic formula"""
 
 
 class TimedInstructionKind(InstructionKind):

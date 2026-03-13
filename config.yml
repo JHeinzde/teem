@@ -30,10 +30,10 @@ UX:
     reg_capitalisation: False
 
     BreakAtFault:
-        branch: True
-        memory: True
-        jump: True
-        ebreak: True
+        branch: False
+        memory: False
+        jump: False
+        ebreak: False
         ecall: False
 
 Mitigations:
