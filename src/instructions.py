@@ -43,9 +43,9 @@ class InstructionKind(ABC):
     def destination(self) -> Optional[int]:
         """Return the index of the destination operand, if any."""
 
-    #@abstractmethod
-    #def power_draw(self):
-    #    """Return the power draw of the instruction based on our generic formula"""
+    def power_draw(self):
+        """Return the power draw of the instruction based on our generic formula"""
+        return self.base_power_draw
 
 
 class TimedInstructionKind(InstructionKind):
