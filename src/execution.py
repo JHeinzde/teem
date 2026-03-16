@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from functools import wraps
 from typing import List, Literal, NewType, Optional, TypeVar, Union, cast, final
 
 from .bpu import AbstractBPU, AbstractBTB
@@ -30,6 +29,7 @@ from .instructions import (
 from .frontend import Frontend
 from .memory import MemorySubsystem, MemResult
 from .word import Word
+from .power import power_draw
 
 _T = TypeVar("_T")
 
@@ -41,15 +41,6 @@ _SlotID = NewType("_SlotID", int)
 # Either a `Word` with a concrete value, or a `_SlotID` referencing the slot that will produce the
 # value
 _WordOrSlot = Union[Word, _SlotID]
-
-
-def power_draw(func):
-    print("JA MOIN")
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        print(type(self))
-        return func(self, *args, **kwargs)
-    return wrapper
 
 
 @dataclass
@@ -139,6 +130,9 @@ class _Slot:
         self.stage_result = None
         self.operands = args.source_operands
 
+    def power(self) -> float:
+        return self.instr.power_draw()
+
     @property
     def executing(self) -> bool:
         "Whether this slot is executing."
@@ -200,10 +194,12 @@ class _Slot:
         return result
 
     def _tick_execute(self) -> Optional[Word]:
-        raise NotImplementedError("Must be overwritten by a concrete slot type")
+        raise NotImplementedError(
+            "Must be overwritten by a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
-        raise NotImplementedError("Must be overwritten by a concrete slot type")
+        raise NotImplementedError(
+            "Must be overwritten by a concrete slot type")
 
 
 class _SlotFaulting(_Slot):
@@ -253,7 +249,8 @@ class _SlotFaulting(_Slot):
 
     def is_faulting(self) -> bool:
         """Check if this instruction causes a fault."""
-        raise NotImplementedError("Must be overwritten by a concrete slot type")
+        raise NotImplementedError(
+            "Must be overwritten by a concrete slot type")
 
     def populate_fault_info(self, info: FaultInfo):
         """Populate information about the fault."""
@@ -358,7 +355,8 @@ class _SlotMem(_SlotFaulting):
 
     def _perform_access(self) -> Optional[MemResult]:
         """Perform the memory operation and return its result if it is done."""
-        raise NotImplementedError("Must be overwritten by a concrete slot type")
+        raise NotImplementedError(
+            "Must be overwritten by a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
         assert self.result is not None
@@ -405,7 +403,8 @@ class _SlotCalc(_Slot):
         return self._compute_result(cast(List[Word], self.operands))
 
     def _compute_result(self, operands: List[Word]) -> Word:
-        raise NotImplementedError("Must be overwritten for a concrete slot type")
+        raise NotImplementedError(
+            "Must be overwritten for a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
         # Retire immediately without a fault
@@ -664,7 +663,8 @@ class _SlotSerializing(_SlotFaulting):
         super().__init__(args)
 
         # IDs of all slots that are not empty
-        self.preceding = {_SlotID(i) for i, slot in enumerate(args.exe._slots) if slot is not None}
+        self.preceding = {_SlotID(i) for i, slot in enumerate(
+            args.exe._slots) if slot is not None}
 
         assert args.exe._frontend is not None
         self.frontend = args.exe._frontend
@@ -810,7 +810,8 @@ class ExecutionEngine:
         source_operands = self._source_operands(instr)
 
         # Create new slot object
-        args = _ArgsSlot(self, instr, source_operands, prediction, addr_prediction)
+        args = _ArgsSlot(self, instr, source_operands,
+                         prediction, addr_prediction)
         new_slot = _get_slot_type(instr.ty)(args)
 
         # Try to put new slot in a free slot
