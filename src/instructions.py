@@ -27,7 +27,6 @@ class InstructionKind(ABC):
 
     operand_types: list[OperandKind]
     name: str
-    base_power_draw: float
 
     def __init__(self, name: str):
         self.name = name

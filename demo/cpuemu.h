@@ -8,6 +8,8 @@
 #define _EMUNR_exit  -1
 #define _EMUNR_write -2
 #define _EMUNR_read  -3
+#define _EMUNR_trace_start -4
+#define _EMUNR_trace_stop  -5
 
 /* Conventional stringification macros. */
 #define __STR(x) #x
@@ -81,6 +83,10 @@ static inline void flushall(void) {
     _EMU_SYSCALL(rv, no, "r"(a1))
 #define _EMU_SYSCALL2(rv, no, a1, a2)     \
     _EMU_SYSCALL(rv, no, "r"(a1), "r"(a2))
+#define _EMU_SYSCALL3(rv, no)             \
+    _EMU_SYSCALL(rv, no)
+#define _EMU_SYSCALL4(rv, no)             \
+    _EMU_SYSCALL(rv, no)
 
 
 /* System call wrappers. */
@@ -121,4 +127,20 @@ static inline int read(void *__buffer, int __size) {
     return _R_result;
 }
 
+/* Start power trace capture. Should be called directly before any AES calcualtion takes place
+ *
+ * returns -- 1 If trace was started, 0 if no trace was started (because one capture is already running)
+ *
+*/
+static inline int trace_start() {
+  register int _R_result asm("a0");
+  _EMU_SYSCALL3(_R_result, _EMUNR_trace_start);
+  return _R_result;
+}
+
+static inline int trace_stop() {
+  register int _R_result asm("a0");
+  _EMU_SYSCALL4(_R_result, _EMUNR_trace_stop);
+  return _R_result;
+}
 #endif

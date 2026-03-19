@@ -131,7 +131,7 @@ class _Slot:
         self.operands = args.source_operands
 
     def power(self) -> float:
-        return self.instr.power_draw()
+        return self.instr.ty.power_draw()
 
     @property
     def executing(self) -> bool:

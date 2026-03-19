@@ -20,6 +20,7 @@ from .byte import Byte
 from . import ui
 from .cpu import CPU, CPUStatus
 from .parser import Parser
+from .power import PowerTrace
 
 PROMPT = ui.BOX_ARROW_FILLED + " "
 
@@ -346,7 +347,6 @@ def exec(cpu: CPU, steps=-1, break_at_retire=False) -> CPU:
             else:
                 line += " with status " + ui.RED + str(cpu._exit_status)
             line += ui.ENDC
-            print(line)
             return cpu
         if break_at_retire and len(info.issued_instructions) + cpu.get_exec_engine().occupied_slots() < inflights_before:
             ui.all_headers(cpu, breakpoints)

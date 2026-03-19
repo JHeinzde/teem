@@ -12,6 +12,7 @@ from .instructions import (Instruction, InstructionKind, InstrBranch, InstrJumpR
                            InstrLoad, InstrStore, InstrFlush, InstrSerializing)
 from .memory import MemorySubsystem
 from .parser import Parser
+from .power import cycle_power
 from .syscalls import dispatch_syscall
 
 
@@ -149,6 +150,7 @@ class CPU:
         # take snapshot
         self._take_snapshot()
 
+    @cycle_power
     def tick(self) -> CPUStatus:
         """
         The tick function that executes one cycles each time it is called.
