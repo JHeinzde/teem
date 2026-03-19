@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable, Literal, Optional, Union, cast
 from .execution import FaultInfo
 from .instructions import RegID
 from .word import Byte, Word
+from .power import PowerTrace
 
 if TYPE_CHECKING:
     # Avoid circular import.
@@ -131,6 +132,16 @@ def sys_read(self: SystemCall):
             return
 
     self.set_return(Word(len(received_bytes)))
+
+
+@syscall(-4)
+def sys_trace_start(self: SystemCall):
+    self.set_return(PowerTrace().start_capture())
+
+
+@syscall(-5)
+def sys_trace_stop(self: SystemCall):
+    self.set_return(PowerTrace().stop_capture())
 
 
 def dispatch_syscall(cpu: CPU, fault_info: FaultInfo) -> None:
