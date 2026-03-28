@@ -1,3 +1,5 @@
+import os
+import time
 from functools import wraps
 
 POWER_VALUES = {
@@ -109,7 +111,24 @@ def cycle_power(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         result = func(self)
+        if result.fault_info is not None:
+            # Currently we only care about cycles that did not produce a fault
+            return result
         PowerTrace().flush_sample()
+        return result
+
+    return wrapper
+
+
+def byte_power(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        other = args[1]
+        print(args)
+        print(kwargs)
+        power_value = self.memory[args[0].value].hamming_distance(other)
+        result = func(self, args, kwargs)
+        PowerTrace().append(power_value)
         return result
 
     return wrapper
@@ -128,6 +147,7 @@ class PowerTrace(object):
             cls.trace = []
             cls.sample = []
             cls.capture = True
+            cls.name = "power-trace"
         return cls._instance
 
     def append(self, trace_value: float):
@@ -145,6 +165,9 @@ class PowerTrace(object):
 
         self.trace.append(cycle_value)
 
+    def set_trace_name(self, name: str):
+        self.name = name
+
     def start_capture(self):
         if not self.capture:
             self.capture = True
@@ -152,12 +175,24 @@ class PowerTrace(object):
         return 0
 
     def stop_capture(self):
+        """
+        Stops a the capture of a power trace. If trace_name does not exist a file with the name {trace_name}.txt will be created,
+        if trace_name alreaady exists it will append the current trace to the existing trace file.
+        trace_name: The name for the file of the power trace
+        return: 0 if no capture was running 1 if capture was stopped successfully
+        """
         if not self.capture:
             return 0
 
-        with open("power-trace.txt", "w") as f:
-            for index, val in enumerate(self.trace):
-                f.write(f"{index}: {val}\n")
+        if os.path.exists(f"./{self.name}.txt"):
+            with open(f"{self.name}.txt", "a") as f:
+                for val in self.trace:
+                    f.write(f"{val}\n")
+        else:
+            with open(f"{self.name}.txt", "w") as f:
+                for val in self.trace:
+                    f.write(f"{val}\n")
+
         self.trace = []
         self.capture = False
 

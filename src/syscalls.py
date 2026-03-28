@@ -144,6 +144,21 @@ def sys_trace_stop(self: SystemCall):
     self.set_return(PowerTrace().stop_capture())
 
 
+@syscall(-6)
+def sys_trace_set_name(self: SystemCall):
+    bufaddr, buffsize = self.get_arg(0), self.get_arg(1).value
+    text_bytes: list[int] = []
+    for i in range(min(buffsize-1, MAX_READWRITE)):
+        mem_result = self.cpu._mem.read_byte(bufaddr + Word(i))
+        if mem_result.fault:
+            self.set_return(Word(-14))
+            return
+
+        text_bytes.append(mem_result.value.value)
+        PowerTrace().set_trace_name(bytes(text_bytes).decode("latin-1"))
+        self.set_return(Word(len(text_bytes)))
+
+
 def dispatch_syscall(cpu: CPU, fault_info: FaultInfo) -> None:
     """
     Select which system call is being called and invoke its handler.

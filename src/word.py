@@ -23,6 +23,9 @@ class Byte:
         """Create a new byte from the given unsigned or two's complement signed value."""
         self._value = value % (1 << self.WIDTH)
 
+    def __xor__(self, other: "Byte") -> "Byte":
+        return Byte(self.value ^ other.value)
+
     @property
     def value(self) -> int:
         """Return this value as an unsigned integer."""
@@ -31,6 +34,12 @@ class Byte:
     def zero_extend(self) -> "Word":
         """Zero-extend this byte to the width of a word."""
         return Word(self.value)
+
+    def hamming_weight(self) -> int:
+        return self.value.bit_count()
+
+    def hamming_distance(self, other: "Byte") -> int:
+        return self.__xor__(other).hamming_weight()
 
 
 class Word:
@@ -204,6 +213,7 @@ class Word:
 
     def hamming_difference(self, other: "Word") -> int:
         return self.__xor__(other).hamming_weight()
+
 
 def div_trunc(a: int, b: int) -> int:
     """

@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Iterable, Union
 
 from .word import Word
 from .byte import Byte
 from .cache import Cache, CacheFIFO, CacheLRU, CacheRR
+from .power import PowerTrace
 
 
 @dataclass
@@ -192,6 +191,12 @@ class MemorySubsystem:
 
         if not fault:
             value = data.value
+            if address.value not in self.memory:
+                before = Byte(0)
+            else:
+                before = Byte(self.memory[address.value])
+
+            PowerTrace().append(before.hamming_distance(data))
             self.memory[address.value] = value
 
             if cache_side_effects or self.is_addr_cached(address):
