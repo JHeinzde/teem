@@ -377,10 +377,13 @@ def __break(input: list[str], cpu: CPU):
     subcmd = input[0]
     if subcmd == 'add':
         if len(input) < 2:
-            print("Usage: break add <address in hex>")
+            print("Usage: break add <address in hex>/*<valid label name>")
             return cpu
         try:
-            addr = int(input[1], 16)
+            if input[1].startswith("*"):
+                addr = cpu._symbols[input[1][1:]]
+            else:
+                addr = int(input[1], 16)
             if addr in breakpoints:
                 print("Breakpoint already exists")
                 return cpu
@@ -388,6 +391,9 @@ def __break(input: list[str], cpu: CPU):
             print("Breakpoint added")
         except ValueError:
             print("Usage: break add <address in hex>")
+        except KeyError:
+            print("Usage: break add *<valid label name>")
+            pass
     elif subcmd == 'delete':
         if len(input) < 2:
             print("Usage: break delete <address in hex>")
