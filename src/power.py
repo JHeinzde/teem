@@ -146,7 +146,7 @@ class PowerTrace(object):
             cls._instance = super(PowerTrace, cls).__new__(cls)
             cls.trace = []
             cls.sample = []
-            cls.capture = True
+            cls.capture = False
             cls.name = "power-trace"
         return cls._instance
 
@@ -171,6 +171,7 @@ class PowerTrace(object):
     def start_capture(self):
         if not self.capture:
             self.capture = True
+            self.sample = []
             return 1
         return 0
 
