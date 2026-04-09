@@ -4,7 +4,7 @@ from typing import Iterable, Union
 from .word import Word
 from .byte import Byte
 from .cache import Cache, CacheFIFO, CacheLRU, CacheRR
-from .power import PowerTrace
+from .power import power_trace, POWER_TRACE
 
 
 @dataclass
@@ -196,7 +196,7 @@ class MemorySubsystem:
             else:
                 before = Byte(self.memory[address.value])
 
-            PowerTrace().append(before.hamming_distance(data))
+            POWER_TRACE.append(before.hamming_distance(data))
             self.memory[address.value] = value
 
             if cache_side_effects or self.is_addr_cached(address):

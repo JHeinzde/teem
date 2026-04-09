@@ -100,7 +100,7 @@ def power_draw(func):
         result = func(self, *args, **kwargs)
         # If a slot is in the executing stage we add its power value to the power trace.
         if self.stage == "executing":
-            pt = PowerTrace()
+            pt = power_trace()
             pt.append(POWER_VALUES[self.instr_ty.name])
         return result
 
@@ -114,7 +114,7 @@ def cycle_power(func):
         if result.fault_info is not None:
             # Currently we only care about cycles that did not produce a fault
             return result
-        PowerTrace().flush_sample()
+        power_trace().flush_sample()
         return result
 
     return wrapper
@@ -164,7 +164,7 @@ class PowerTrace(object):
     def stop_capture(self):
         """
         Stops a the capture of a power trace. If trace_name does not exist a file with the name {trace_name}.txt will be created,
-        if trace_name alreaady exists it will append the current trace to the existing trace file.
+        if trace_name already exists it will append the current trace to the existing trace file.
         trace_name: The name for the file of the power trace
         return: 0 if no capture was running 1 if capture was stopped successfully
         """
@@ -173,16 +173,32 @@ class PowerTrace(object):
 
         export = np.asarray(self.trace)
 
-        if os.path.exists(f"./{self.name}.txt"):
-            with open(f"{self.name}.txt", "a") as f:
-                for val in self.trace:
-                    f.write(f"{val}\n")
+        if not os.path.exists("traces/"):
+            os.mkdir("./traces")
+
+        trace_path = f"./traces/{self.name}"
+
+        if os.path.exists(trace_path):
+            with open(trace_path, "wb") as f:
+                # In case the file already exists we want to only append to the existing power trace inside of that file
+                # The reason for this is the API we offer in the user-space of the emulator of the cpu
+                arr = np.load(f)
+                arr.extend(export)
+                f.seek(0)
+                np.save(arr)
         else:
-            with open(f"{self.name}.txt", "w") as f:
-                for val in self.trace:
-                    f.write(f"{val}\n")
+            with open(trace_path, "wb") as f:
+                np.save(f, export)
 
         self.trace = []
         self.capture = False
 
         return 1
+
+def power_trace():
+    return PowerTrace()
+
+
+POWER_TRACE = power_trace()
+
+
