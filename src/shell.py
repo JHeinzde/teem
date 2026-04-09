@@ -20,7 +20,6 @@ from .byte import Byte
 from . import ui
 from .cpu import CPU, CPUStatus
 from .parser import Parser
-from .power import PowerTrace
 
 PROMPT = ui.BOX_ARROW_FILLED + " "
 

@@ -1,5 +1,5 @@
 BPU:
-    advanced: True
+    advanced: False
     index_bits: 4
     init_counter: 2
 

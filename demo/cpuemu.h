@@ -1,15 +1,18 @@
 
 /* cpuemu.h -- Header file for C programs to run on the CPU emulator. */
-
+#pragma once
 #ifndef CPUEMU_H
 #define CPUEMU_H
 
 /* System call numbers. */
+//#include <cstring>
 #define _EMUNR_exit  -1
 #define _EMUNR_write -2
 #define _EMUNR_read  -3
 #define _EMUNR_trace_start -4
 #define _EMUNR_trace_stop  -5
+#define _EMNUR_trace_set_name -6
+#define _EMNUR_trace_delay -7
 
 /* Conventional stringification macros. */
 #define __STR(x) #x
@@ -87,8 +90,10 @@ static inline void flushall(void) {
     _EMU_SYSCALL(rv, no)
 #define _EMU_SYSCALL4(rv, no)             \
     _EMU_SYSCALL(rv, no)
-
-
+#define _EMU_SYSCALL5(rv, no, a1, a2)     \
+    _EMU_SYSCALL(rv, no, "r"(a1), "r"(a2))
+#define _EMU_SYSCALL6(rv, no) \
+    _EMU_SYSCALL(rv, no)
 /* System call wrappers. */
 
 /* Shut down the emulator.
@@ -138,9 +143,109 @@ static inline int trace_start() {
   return _R_result;
 }
 
+/* Stop power trace capture. If the set trace name already exists we append to the end of the trace 
+ * otherwise w new file will be created by the emulator with the trace name containing the captured power trace
+ *
+ * returns -- 1 If trace was stopped successfully, 0 if no trace was running 
+ */
 static inline int trace_stop() {
   register int _R_result asm("a0");
   _EMU_SYSCALL4(_R_result, _EMUNR_trace_stop);
   return _R_result;
+}
+
+
+/* Set the name for the file where the power trace will be captured. WARNING: Can be called during an already running capture. This will
+ * result in parts of the already running capture being written to another file if it is called with a new name. Therefore the only safe 
+ * use of this syscall is calling it outside of any running trace.
+ *
+ * return -- -1 if the pointer to the buffer referenced invalid memory that would produce a fault, 0 if the trace name was set successfully.
+ * */ 
+static inline int trace_set_name(const void *__buffer, int __size) {
+  register int _R_buffer asm("a0") = (int) __buffer;
+  register int _R_size   asm("a1") = __size;
+  register int _R_result asm("a0");
+  _EMU_SYSCALL5(_R_result, _EMNUR_trace_set_name, _R_buffer, _R_size); 
+  return _R_result;
+}
+
+/*
+ * Delays the run of the program by a random amount and will add a random amount of power draw depending on the length of the stall to the 
+ * power trace value
+ * */
+static inline int trace_delay() {
+  register int _R_result asm("a0");
+  _EMU_SYSCALL6(_R_result, _EMNUR_trace_delay);
+  return _R_result;
+}
+
+/* Basic libc like functions -- TODO: Replace all of this with something like a single file libc (for example diet-libc) */ 
+
+static inline void *memcpy(void *destination, const void *source, int num) {
+  char *s_t = (char *) source;
+  char *d_t = (char *) destination;
+
+  while (num-- > 0) {
+    d_t[num] = s_t[num];
+  }
+
+  return destination;
+}
+
+
+static inline int memcmp(const void *s1, const void *s2, int n) {
+  char *s_t = (char *)s1;
+  char *d_t = (char *)s2;
+
+  while (n-- > 0) {
+    if (s_t[n] != d_t[n]) 
+      return 1;
+  }
+
+  return 0;
+}
+
+
+static inline void memset(void *dest, char something, unsigned long times) {
+  char *d_t = (char*) dest; 
+
+  while (times-- > 0) {
+    d_t[times] = something;
+  }
+}
+
+
+static inline int strlen(char *string) {
+  int i = 0;
+  while (string[i] != '\0') {
+    i++;
+  }
+
+  return ++i;
+}
+
+
+static inline void iota(int integer, char* output) {
+  const char abc[11] = "0123456789";
+  char *tmp = output;
+
+  while (integer / 10 != 0) {
+    *tmp = abc[integer % 10];
+    integer = integer / 10;
+    tmp++;
+  } 
+
+
+  *(tmp++) = abc[integer % 10];
+  *tmp = '\0'; // ensure string is terminated 
+
+  int n = strlen(output) - 2;
+  int begin = 0;
+
+  while (n - begin > 0) {
+    char tmp = output[begin];
+    output[begin++] = output[n];
+    output[n--] = tmp;
+  }
 }
 #endif

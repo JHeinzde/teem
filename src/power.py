@@ -1,5 +1,5 @@
 import os
-import time
+import numpy as np
 from functools import wraps
 
 POWER_VALUES = {
@@ -120,20 +120,6 @@ def cycle_power(func):
     return wrapper
 
 
-def byte_power(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        other = args[1]
-        print(args)
-        print(kwargs)
-        power_value = self.memory[args[0].value].hamming_distance(other)
-        result = func(self, args, kwargs)
-        PowerTrace().append(power_value)
-        return result
-
-    return wrapper
-
-
 class PowerTrace(object):
     """
     Represents a power trace of the cpu. This is an append only data structure
@@ -184,6 +170,8 @@ class PowerTrace(object):
         """
         if not self.capture:
             return 0
+
+        export = np.asarray(self.trace)
 
         if os.path.exists(f"./{self.name}.txt"):
             with open(f"{self.name}.txt", "a") as f:

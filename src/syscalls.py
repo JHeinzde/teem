@@ -151,12 +151,19 @@ def sys_trace_set_name(self: SystemCall):
     for i in range(min(buffsize-1, MAX_READWRITE)):
         mem_result = self.cpu._mem.read_byte(bufaddr + Word(i))
         if mem_result.fault:
-            self.set_return(Word(-14))
+            self.set_return(Word(-1))
             return
 
         text_bytes.append(mem_result.value.value)
         PowerTrace().set_trace_name(bytes(text_bytes).decode("latin-1"))
         self.set_return(Word(len(text_bytes)))
+
+
+@syscall(-7)
+def sys_trace_delay(self: SystemCall):
+    self.set_return(Word(0))
+    # TODO: implement some kind of delay which stalls a slot for random amounts of cycles and also 
+    # adds a random amount of power draw to the cycles where it stalls the calcualtion
 
 
 def dispatch_syscall(cpu: CPU, fault_info: FaultInfo) -> None:

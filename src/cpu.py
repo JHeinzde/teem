@@ -116,7 +116,10 @@ class CPU:
         global _snapshots
         self._snapshot_index = 0
         _snapshots = []
-        if self._config["Rollback"]["Snapshots"] is True:
+
+        self._take_snapshots = self._config["Rollback"]["Snapshots"]
+
+        if self._take_snapshots:
             _snapshots.append(copy.deepcopy(self))
 
     def load_program_from_file(self, path: str):
@@ -302,8 +305,7 @@ class CPU:
         """
         global _snapshots
 
-
-        if self._config["Rollback"]["Snapshots"] is False:
+        if not self._take_snapshots:
             return
 
         if self._snapshot_index < len(_snapshots) - 1:
