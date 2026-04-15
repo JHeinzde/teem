@@ -12,7 +12,7 @@ from .instructions import (Instruction, InstructionKind, InstrBranch, InstrJumpR
                            InstrLoad, InstrStore, InstrFlush, InstrSerializing)
 from .memory import MemorySubsystem
 from .parser import Parser
-from .power import cycle_power
+from .power import cycle_power, set_config
 from .syscalls import dispatch_syscall
 
 
@@ -121,6 +121,8 @@ class CPU:
 
         if self._take_snapshots:
             _snapshots.append(copy.deepcopy(self))
+        set_config(config)
+
 
     def load_program_from_file(self, path: str):
         """Loads a program given a file path."""

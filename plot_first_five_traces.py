@@ -21,11 +21,11 @@ parser.add_argument(
 args = parser.parse_args()
 
 # Load all trace files, sorted numerically
-trace_files = sorted(glob.glob("trace-*.txt"), key=lambda f: int(f.split("-")[1].split(".")[0]))
+trace_files = sorted(glob.glob("traces/trace-*"), key=lambda f: int(f.split("-")[1].split(".")[0]))
 n = len(trace_files)
 print(f"Loading {n} traces…")
 
-raw = [np.loadtxt(f) for f in trace_files]
+raw = [np.load(f) for f in trace_files]
 min_len = min(len(t) for t in raw)
 traces = np.array([t[:min_len] for t in raw])
 mean_trace = traces.mean(axis=0)

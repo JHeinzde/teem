@@ -4,7 +4,7 @@ from typing import Iterable, Union
 from .word import Word
 from .byte import Byte
 from .cache import Cache, CacheFIFO, CacheLRU, CacheRR
-from .power import power_trace, POWER_TRACE
+from .power import POWER_TRACE
 
 
 @dataclass

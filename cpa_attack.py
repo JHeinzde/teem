@@ -39,13 +39,12 @@ def cov(X, X_bar, Y, Y_bar):
 
 def main():
     traces = [[] for x in range(255)]
-    for file in os.listdir("./"):
+    for file in os.listdir("./traces/"):
         if file.startswith("trace"):
-            with open(f"./{file}", "r") as f:
-                content = f.readlines()
+            with open(f"./traces/{file}", "rb") as f:
+                content = np.load(f)
             index = int(file.split("-")[1].split(".")[0])
-            content = list(map(lambda x: float(x.strip()), content))
-            traces[index] = np.array(content[:130])
+            traces[index] = content[:130]
 
     textin_array = []
 

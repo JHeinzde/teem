@@ -46,3 +46,6 @@ Microprograms:
 
 Rollback: 
    Snapshots: False
+
+PowerTraces:
+    random_noise: True

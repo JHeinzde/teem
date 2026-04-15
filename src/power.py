@@ -100,7 +100,7 @@ def power_draw(func):
         result = func(self, *args, **kwargs)
         # If a slot is in the executing stage we add its power value to the power trace.
         if self.stage == "executing":
-            pt = power_trace()
+            pt = POWER_TRACE
             pt.append(POWER_VALUES[self.instr_ty.name])
         return result
 
@@ -114,7 +114,7 @@ def cycle_power(func):
         if result.fault_info is not None:
             # Currently we only care about cycles that did not produce a fault
             return result
-        power_trace().flush_sample()
+        POWER_TRACE.flush_sample()
         return result
 
     return wrapper
@@ -134,6 +134,8 @@ class PowerTrace(object):
             cls.sample = []
             cls.capture = False
             cls.name = "power-trace"
+            cls.random = np.random.default_rng()
+            cls.random_noise = True
         return cls._instance
 
     def append(self, trace_value: float):
@@ -163,8 +165,8 @@ class PowerTrace(object):
 
     def stop_capture(self):
         """
-        Stops a the capture of a power trace. If trace_name does not exist a file with the name {trace_name}.txt will be created,
-        if trace_name already exists it will append the current trace to the existing trace file.
+        Stops a the capture of a power trace. It will write all resulting traces into a ./traces directory. 
+        If the set trace name already exists we will extend the power trace already contained in that file. 
         trace_name: The name for the file of the power trace
         return: 0 if no capture was running 1 if capture was stopped successfully
         """
@@ -173,15 +175,18 @@ class PowerTrace(object):
 
         export = np.asarray(self.trace)
 
+        if self.random_noise:
+            noise = self.random.standard_normal(len(export))
+            export += noise
+
         if not os.path.exists("traces/"):
             os.mkdir("./traces")
 
         trace_path = f"./traces/{self.name}"
 
         if os.path.exists(trace_path):
-            with open(trace_path, "wb") as f:
-                # In case the file already exists we want to only append to the existing power trace inside of that file
-                # The reason for this is the API we offer in the user-space of the emulator of the cpu
+            with open(trace_path) as f:
+                # TODO: see if there is a more simple way to extend the array in a file
                 arr = np.load(f)
                 arr.extend(export)
                 f.seek(0)
@@ -195,10 +200,9 @@ class PowerTrace(object):
 
         return 1
 
-def power_trace():
-    return PowerTrace()
+
+def set_config(conf):
+    PowerTrace().random_noise = conf["PowerTraces"]["random_noise"]
 
 
-POWER_TRACE = power_trace()
-
-
+POWER_TRACE = PowerTrace()
