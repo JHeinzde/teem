@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Union, cast
 
 from .execution import FaultInfo
 from .instructions import RegID
 from .word import Byte, Word
-from .power import PowerTrace
+from .power import POWER_TRACE
 
 if TYPE_CHECKING:
     # Avoid circular import.
@@ -136,12 +137,12 @@ def sys_read(self: SystemCall):
 
 @syscall(-4)
 def sys_trace_start(self: SystemCall):
-    self.set_return(PowerTrace().start_capture())
+    self.set_return(POWER_TRACE.start_capture())
 
 
 @syscall(-5)
 def sys_trace_stop(self: SystemCall):
-    self.set_return(PowerTrace().stop_capture())
+    self.set_return(POWER_TRACE.stop_capture())
 
 
 @syscall(-6)
@@ -155,15 +156,18 @@ def sys_trace_set_name(self: SystemCall):
             return
 
         text_bytes.append(mem_result.value.value)
-        PowerTrace().set_trace_name(bytes(text_bytes).decode("latin-1"))
+        POWER_TRACE.set_trace_name(bytes(text_bytes).decode("latin-1"))
         self.set_return(Word(len(text_bytes)))
 
 
 @syscall(-7)
 def sys_trace_delay(self: SystemCall):
+    # We simulate stalling or a random operation with this syscalls implementation
+    # TODO: Fix bug where we have a huge peak at the beginning.
+    for i in range(random.randint(0, 20)):
+        POWER_TRACE.append(-30.0 + 60.0 * random.random())
+        POWER_TRACE.flush_sample()
     self.set_return(Word(0))
-    # TODO: implement some kind of delay which stalls a slot for random amounts of cycles and also 
-    # adds a random amount of power draw to the cycles where it stalls the calcualtion
 
 
 def dispatch_syscall(cpu: CPU, fault_info: FaultInfo) -> None:

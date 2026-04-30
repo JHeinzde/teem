@@ -5,6 +5,7 @@ from time import time
 from typing import Generic, Optional, Type, TypeVar
 
 from .word import Word
+from .power import POWER_TRACE
 
 
 class CacheLine:
@@ -94,6 +95,16 @@ class CacheLine:
         Returns:
             This function does not have a return value.
         """
+
+        if offset in self.data:
+            before = self.data[offset]
+        else:
+            before = 0
+
+        if before is None:
+            before = 0
+        # Writing data too a cache should definitly have consequences for the power trace
+        POWER_TRACE.append((before ^ data).bit_count())
         self.data[offset] = data
 
     def flush(self) -> None:

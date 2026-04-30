@@ -29,7 +29,7 @@ from .instructions import (
 from .frontend import Frontend
 from .memory import MemorySubsystem, MemResult
 from .word import Word
-from .power import power_draw
+from .power import power_draw, POWER_TRACE
 
 _T = TypeVar("_T")
 
@@ -438,13 +438,31 @@ class _SlotLoad(_SlotMem):
     """An occupied slot in the Reservation Station, storing a load instruction."""
 
     instr_ty: InstrLoad
+    old_dst: Word 
+
+    def __init__(self, args: _ArgsSlot):
+        super().__init__(args)
+        dst = self.instr.destination()
+        if dst is not None and dst != 0: 
+            old = self.exe._registers[dst]
+
+            # If old is not instance of word the register is already inflight issued to another instruction, se we assume 
+            # it is 0 for the time being 
+            self.old_dst = old if isinstance(old, Word) else Word(0)
+        else:
+            self.old_dst = Word(0)
 
     def _perform_access(self) -> Optional[MemResult]:
         assert self.address is not None
 
         # Perform the load operation
-        return self.memory.read_word(self.address, width=self.instr_ty.width,
-                                     sign_extend=self.instr_ty.signed)
+        mem_result = self.memory.read_word(self.address, width=self.instr_ty.width,
+                                           sign_extend=self.instr_ty.signed)
+
+        if mem_result is not None and self.old_dst is not None:
+            POWER_TRACE.append(self.old_dst.hamming_difference(mem_result.value))
+
+        return mem_result
 
 
 class _SlotStore(_SlotMem):
@@ -632,7 +650,7 @@ class _SlotCyclecount(_Slot):
 
     instr_ty: InstrCyclecount
 
-    # Reference to execution engine, so we can query the cycle counter
+    # Refeence to execution engine, so we can query the cycle counter
     exe: "ExecutionEngine"
 
     def __init__(self, args: _ArgsSlot):
@@ -819,7 +837,7 @@ class ExecutionEngine:
             if slot is not None:
                 continue
 
-            # Found a free slot, populate it
+            # Found a free slot, populat it
             self._slots[i] = new_slot
 
             # Mark destination register as waiting on new slot

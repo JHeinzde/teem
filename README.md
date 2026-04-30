@@ -18,6 +18,13 @@ To install the required packages, one may use the following command:
 pip install -r requirements.txt
 ```
 
+### Performance 
+
+If you want to run code like a cryptographic algorithm with this simulator, to use its power trace generation capabilities we strongly recommend 
+that you use the PyPy python implementation instead of regular cypthon. The reason for this is, that regular cpython is really slow which can make 
+a big difference when running a cryptographic algorithm and needing to generate a lot of traces, to do a power-analysis-based side channel attack 
+on it. You can approximatly expect a 2x speedup when running this emulator using PyPy instead of using cPython. 
+
 ## Running the program
 
 The syntax for running TEEM from the root folder of the repository is:
