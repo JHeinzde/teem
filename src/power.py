@@ -1,6 +1,7 @@
 import os
 from functools import wraps
 from typing import List, Tuple, Callable
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -209,7 +210,6 @@ def set_config(conf):
 
 POWER_TRACE = PowerTrace()
 
-# disable E231
 SBOX = [
     0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
     0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
@@ -332,3 +332,27 @@ class DPAAttack:
             else:
                 dpa_scores[key_guess] = 0
         return dpa_scores
+
+
+class TraceLoader:
+
+    def __init__(self, path):
+        self.path = Path(path)
+
+    def load_traces(self) -> npt.ArrayLike:
+        trace_files = self.path.glob("trace-*")
+        max_trace_length = 0
+        traces = []
+        for trace_file in trace_files:
+            trace_data = np.load(trace_file)
+            max_trace_length = max(max_trace_length, len(trace_data))
+            traces.append(trace_data)
+
+        final_traces = []
+        for trace in traces:
+            extension = np.zero(max_trace_length - len(trace))
+            final_traces.append(np.concatenate(trace, extension))
+        return np.asarray(final_traces)
+
+
+
