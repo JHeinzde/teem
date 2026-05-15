@@ -4771,7 +4771,6 @@ SubBytes:                               # @SubBytes
 	add	a0, a0, a2
 	lbu	a0, 0(a0)
 	sb	a0, 0(a1)
-	call	trace_delay
 	lbu	a0, -9(s0)
 	bne	a0, zero, .LBB66_8
 	jal	zero, .LBB66_6
@@ -5932,7 +5931,7 @@ rsbox:
 	.asciz	"0123456789"
 	.size	.L__const.iota.abc, 11
 
-	.ident	"clang version 22.1.3"
+	.ident	"clang version 22.1.5"
 	.section	".note.GNU-stack","",@progbits
 	.addrsig
 	.addrsig_sym AES_ECB_encrypt

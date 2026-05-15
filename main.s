@@ -1,8 +1,8 @@
+	.text
 	.attribute	4, 16
-	.attribute	5, "rv32i2p1_m2p0_zicbom1p0_zmmul1p0_xtheadcmo1p0"
+	.attribute	5, "rv32i2p1_m2p0_zicbom1p0_xtheadcmo1p0"
 	.file	"main.c"
                                         # Start of file scope inline assembly
-	.text
 _start:
 	lui	sp, 65536
 	call	main
@@ -162,8 +162,8 @@ KeyExpansion:                           # @KeyExpansion
 	jal	zero, .LBB2_5
 .LBB2_5:                                #   in Loop: Header=BB2_1 Depth=1
 	lbu	a0, -14(s0)
-	lui	a2, %hi(RoundKey)
-	addi	a2, a2, %lo(RoundKey)
+	lui	a1, %hi(RoundKey)
+	addi	a2, a1, %lo(RoundKey)
 	add	a3, a2, a0
 	lbu	a1, -3(a3)
 	lui	a0, %hi(sbox)
@@ -288,7 +288,8 @@ rijndaelEncrypt:                        # @rijndaelEncrypt
 	lbu	a0, -17(s0)
 	lw	a1, -16(s0)
 	call	AddRoundKey
-	lw	a0, -16(s0)
+	lbu	a0, -17(s0)
+	lw	a1, -16(s0)
 	call	SubBytes
 	lw	a0, -24(s0)
 	call	ShiftRows
@@ -1726,8 +1727,8 @@ cMac:                                   # @cMac
 	lbu	a2, -29(s0)
 	sub	a1, a1, a2
 	lw	a4, -28(s0)
-	lui	a3, %hi(rijndaelEncrypt)
-	addi	a3, a3, %lo(rijndaelEncrypt)
+	lui	a2, %hi(rijndaelEncrypt)
+	addi	a3, a2, %lo(rijndaelEncrypt)
 	addi	a2, a4, 0
 	call	xMac
 	lbu	a1, -29(s0)
@@ -1753,8 +1754,8 @@ cMac:                                   # @cMac
 	sltiu	a2, a1, 1
 	add	a1, a1, a2
 	lw	a4, -28(s0)
-	lui	a3, %hi(rijndaelEncrypt)
-	addi	a3, a3, %lo(rijndaelEncrypt)
+	lui	a2, %hi(rijndaelEncrypt)
+	addi	a3, a2, %lo(rijndaelEncrypt)
 	addi	a2, a4, 0
 	call	xMac
 	lw	ra, 44(sp)                      # 4-byte Folded Reload
@@ -2171,9 +2172,9 @@ CCMtag:                                 # @CCMtag
 	lbu	a0, -49(s0)
 	addi	a0, a0, 4
 	sb	a0, -49(s0)
-	addi	a0, zero, -1
+	addi	a0, zero, 255
 	sb	a0, -48(s0)
-	addi	a0, zero, -2
+	addi	a0, zero, 254
 	sb	a0, -47(s0)
 	jal	zero, .LBB33_3
 .LBB33_3:
@@ -2214,8 +2215,8 @@ CCMtag:                                 # @CCMtag
 	jal	zero, .LBB33_7
 .LBB33_7:
 	lw	a4, -32(s0)
-	lui	a3, %hi(rijndaelEncrypt)
-	addi	a3, a3, %lo(rijndaelEncrypt)
+	lui	a0, %hi(rijndaelEncrypt)
+	addi	a3, a0, %lo(rijndaelEncrypt)
 	addi	a0, s0, -48
 	addi	a1, zero, 16
 	addi	a2, a4, 0
@@ -2231,8 +2232,8 @@ CCMtag:                                 # @CCMtag
 	lw	a1, -24(s0)
 	sub	a1, a1, a2
 	lw	a4, -32(s0)
-	lui	a3, %hi(rijndaelEncrypt)
-	addi	a3, a3, %lo(rijndaelEncrypt)
+	lui	a2, %hi(rijndaelEncrypt)
+	addi	a3, a2, %lo(rijndaelEncrypt)
 	addi	a2, a4, 0
 	call	xMac
 	jal	zero, .LBB33_9
@@ -2240,8 +2241,8 @@ CCMtag:                                 # @CCMtag
 	lw	a0, -20(s0)
 	lw	a1, -28(s0)
 	lw	a4, -32(s0)
-	lui	a3, %hi(rijndaelEncrypt)
-	addi	a3, a3, %lo(rijndaelEncrypt)
+	lui	a2, %hi(rijndaelEncrypt)
+	addi	a3, a2, %lo(rijndaelEncrypt)
 	addi	a2, a4, 0
 	call	xMac
 	lw	a0, -12(s0)
@@ -3253,8 +3254,8 @@ OCB_cipher:                             # @OCB_cipher
 	lw	a0, -36(s0)
 	lw	a1, -20(s0)
 	lw	a4, -40(s0)
-	lui	a3, %hi(nop)
-	addi	a3, a3, %lo(nop)
+	lui	a2, %hi(nop)
+	addi	a3, a2, %lo(nop)
 	addi	a2, zero, 0
 	sw	a2, -168(s0)                    # 4-byte Folded Spill
 	call	xMac
@@ -3336,8 +3337,8 @@ OCB_cipher:                             # @OCB_cipher
 	lw	a2, -20(s0)
 	sub	a1, a1, a2
 	lw	a4, -40(s0)
-	lui	a3, %hi(nop)
-	addi	a3, a3, %lo(nop)
+	lui	a2, %hi(nop)
+	addi	a3, a2, %lo(nop)
 	addi	a2, zero, 0
 	sw	a2, -172(s0)                    # 4-byte Folded Spill
 	call	xMac
@@ -3530,9 +3531,8 @@ AES_KEY_wrap:                           # @AES_KEY_wrap
 	addi	a0, zero, 0
 	sw	a0, -60(s0)
 	lw	a0, -64(s0)
-	slli	a1, a0, 1
-	slli	a0, a0, 3
-	sub	a0, a0, a1
+	addi	a1, zero, 6
+	mul	a0, a0, a1
 	sw	a0, -64(s0)
 	jal	zero, .LBB49_4
 .LBB49_4:                               # =>This Inner Loop Header: Depth=1
@@ -3687,9 +3687,8 @@ AES_KEY_unwrap:                         # @AES_KEY_unwrap
 	addi	a0, a0, -1
 	sw	a0, -64(s0)
 	lw	a0, -64(s0)
-	slli	a1, a0, 1
-	slli	a0, a0, 3
-	sub	a0, a0, a1
+	addi	a1, zero, 6
+	mul	a0, a0, a1
 	sw	a0, -60(s0)
 	jal	zero, .LBB51_4
 .LBB51_4:                               # =>This Inner Loop Header: Depth=1
@@ -4172,79 +4171,53 @@ modP1305:                               # @modP1305
 .Lfunc_end55:
 	.size	modP1305, .Lfunc_end55-modP1305
                                         # -- End function
-	.globl	main                            # -- Begin function main
+	.globl	main2                           # -- Begin function main2
 	.p2align	2
-	.type	main,@function
-main:                                   # @main
+	.type	main2,@function
+main2:                                  # @main2
 # %bb.0:
-	addi	sp, sp, -368
-	sw	ra, 364(sp)                     # 4-byte Folded Spill
-	sw	s0, 360(sp)                     # 4-byte Folded Spill
-	addi	s0, sp, 368
-	addi	a0, s0, -119
-	sw	a0, -336(s0)
-	addi	a0, zero, 31
-	sb	a0, -337(s0)
-	addi	a0, zero, 57
-	sb	a0, -338(s0)
-	lui	a0, %hi(cipherKey)
-	lw	a0, %lo(cipherKey)(a0)
-	addi	a1, s0, -88
-	sw	a1, -360(s0)                    # 4-byte Folded Spill
-	call	hex2bytes
-	lui	a0, %hi(secondKey)
-	lw	a0, %lo(secondKey)(a0)
-	addi	a1, s0, -56
-	call	hex2bytes
-	lui	a0, %hi(secretKey)
-	lw	a0, %lo(secretKey)(a0)
-	addi	a1, s0, -120
-	call	hex2bytes
-	lui	a0, %hi(iVec)
-	lw	a0, %lo(iVec)(a0)
-	addi	a1, s0, -24
-	call	hex2bytes
-	lui	a0, %hi(plainText)
-	lw	a0, %lo(plainText)(a0)
-	addi	a1, s0, -184
-	sw	a1, -344(s0)                    # 4-byte Folded Spill
-	call	hex2bytes
-	lui	a0, %hi(ecbcipher)
-	lw	a0, %lo(ecbcipher)(a0)
-	addi	a1, s0, -257
-	sw	a1, -356(s0)                    # 4-byte Folded Spill
-	call	hex2bytes
-	lw	a0, -360(s0)                    # 4-byte Folded Reload
-	lw	a1, -344(s0)                    # 4-byte Folded Reload
-	lbu	a2, -338(s0)
-	addi	a3, s0, -330
-	sw	a3, -348(s0)                    # 4-byte Folded Spill
-	call	AES_ECB_encrypt
-	lw	a2, -356(s0)                    # 4-byte Folded Reload
-	lw	a1, -348(s0)                    # 4-byte Folded Reload
+	addi	sp, sp, -128
+	sw	ra, 124(sp)                     # 4-byte Folded Spill
+	sw	s0, 120(sp)                     # 4-byte Folded Spill
+	addi	s0, sp, 128
+	addi	a0, s0, -88
+	sw	a0, -124(s0)                    # 4-byte Folded Spill
+	sw	a0, -92(s0)
 	lui	a0, %hi(.L.str)
 	addi	a0, a0, %lo(.L.str)
-	addi	a3, zero, 64
-	sw	a3, -352(s0)                    # 4-byte Folded Spill
-	call	check
-	lw	a0, -360(s0)                    # 4-byte Folded Reload
-	lw	a1, -356(s0)                    # 4-byte Folded Reload
-	lw	a2, -352(s0)                    # 4-byte Folded Reload
-	lw	a3, -348(s0)                    # 4-byte Folded Reload
-	call	AES_ECB_decrypt
-	lw	a1, -348(s0)                    # 4-byte Folded Reload
-	lw	a2, -344(s0)                    # 4-byte Folded Reload
-	lbu	a3, -338(s0)
-	lui	a0, %hi(.L.str.1)
-	addi	a0, a0, %lo(.L.str.1)
-	call	check
+	addi	a1, s0, -24
+	sw	a1, -120(s0)                    # 4-byte Folded Spill
+	call	hex2bytes
+	lw	a0, -124(s0)                    # 4-byte Folded Reload
+	addi	a1, zero, 32
+	call	read
+	addi	a0, s0, -112
+	sw	a0, -128(s0)                    # 4-byte Folded Spill
+	addi	a1, zero, 20
+	call	read
+                                        # kill: def $x11 killed $x10
+	lw	a0, -128(s0)                    # 4-byte Folded Reload
+	call	strlen
+	addi	a1, a0, 0
+	lw	a0, -128(s0)                    # 4-byte Folded Reload
+	call	trace_set_name
+                                        # kill: def $x11 killed $x10
+	lw	a0, -124(s0)                    # 4-byte Folded Reload
+	addi	a1, s0, -40
+	sw	a1, -116(s0)                    # 4-byte Folded Spill
+	call	hex2bytes
+	lw	a0, -120(s0)                    # 4-byte Folded Reload
+	lw	a1, -116(s0)                    # 4-byte Folded Reload
+	addi	a2, zero, 16
+	addi	a3, s0, -56
+	call	AES_ECB_encrypt
 	addi	a0, zero, 0
-	lw	ra, 364(sp)                     # 4-byte Folded Reload
-	lw	s0, 360(sp)                     # 4-byte Folded Reload
-	addi	sp, sp, 368
+	lw	ra, 124(sp)                     # 4-byte Folded Reload
+	lw	s0, 120(sp)                     # 4-byte Folded Reload
+	addi	sp, sp, 128
 	jalr	zero, 0(ra)
 .Lfunc_end56:
-	.size	main, .Lfunc_end56-main
+	.size	main2, .Lfunc_end56-main2
                                         # -- End function
 	.p2align	2                               # -- Begin function hex2bytes
 	.type	hex2bytes,@function
@@ -4283,9 +4256,10 @@ hex2bytes:                              # @hex2bytes
 	jal	zero, .LBB57_8
 .LBB57_5:                               #   in Loop: Header=BB57_1 Depth=1
 	lw	a0, -20(s0)
-	xori	a0, a0, 4
-	sw	a0, -20(s0)
-	beq	a0, zero, .LBB57_7
+	xori	a1, a0, 4
+	sw	a1, -20(s0)
+	addi	a1, zero, 4
+	beq	a0, a1, .LBB57_7
 	jal	zero, .LBB57_6
 .LBB57_6:                               #   in Loop: Header=BB57_1 Depth=1
 	lw	a1, -16(s0)
@@ -4323,9 +4297,187 @@ hex2bytes:                              # @hex2bytes
 .Lfunc_end57:
 	.size	hex2bytes, .Lfunc_end57-hex2bytes
                                         # -- End function
-	.p2align	2                               # -- Begin function check
-	.type	check,@function
-check:                                  # @check
+	.p2align	2                               # -- Begin function read
+	.type	read,@function
+read:                                   # @read
+# %bb.0:
+	addi	sp, sp, -32
+	sw	ra, 28(sp)                      # 4-byte Folded Spill
+	sw	s0, 24(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 32
+	sw	a0, -12(s0)
+	sw	a1, -16(s0)
+	lw	a0, -12(s0)
+	sw	a0, -20(s0)
+	lw	a0, -16(s0)
+	sw	a0, -24(s0)
+	lw	a0, -20(s0)
+	lw	a1, -24(s0)
+	#APP
+	addi	a7, zero, -3
+	ecall
+	#NO_APP
+	sw	a0, -28(s0)
+	lw	a0, -28(s0)
+	lw	ra, 28(sp)                      # 4-byte Folded Reload
+	lw	s0, 24(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 32
+	jalr	zero, 0(ra)
+.Lfunc_end58:
+	.size	read, .Lfunc_end58-read
+                                        # -- End function
+	.p2align	2                               # -- Begin function trace_set_name
+	.type	trace_set_name,@function
+trace_set_name:                         # @trace_set_name
+# %bb.0:
+	addi	sp, sp, -32
+	sw	ra, 28(sp)                      # 4-byte Folded Spill
+	sw	s0, 24(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 32
+	sw	a0, -12(s0)
+	sw	a1, -16(s0)
+	lw	a0, -12(s0)
+	sw	a0, -20(s0)
+	lw	a0, -16(s0)
+	sw	a0, -24(s0)
+	lw	a0, -20(s0)
+	lw	a1, -24(s0)
+	#APP
+	addi	a7, zero, -6
+	ecall
+	#NO_APP
+	sw	a0, -28(s0)
+	lw	a0, -28(s0)
+	lw	ra, 28(sp)                      # 4-byte Folded Reload
+	lw	s0, 24(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 32
+	jalr	zero, 0(ra)
+.Lfunc_end59:
+	.size	trace_set_name, .Lfunc_end59-trace_set_name
+                                        # -- End function
+	.p2align	2                               # -- Begin function strlen
+	.type	strlen,@function
+strlen:                                 # @strlen
+# %bb.0:
+	addi	sp, sp, -16
+	sw	ra, 12(sp)                      # 4-byte Folded Spill
+	sw	s0, 8(sp)                       # 4-byte Folded Spill
+	addi	s0, sp, 16
+	sw	a0, -12(s0)
+	addi	a0, zero, 0
+	sw	a0, -16(s0)
+	jal	zero, .LBB60_1
+.LBB60_1:                               # =>This Inner Loop Header: Depth=1
+	lw	a0, -12(s0)
+	lw	a1, -16(s0)
+	add	a0, a0, a1
+	lbu	a0, 0(a0)
+	beq	a0, zero, .LBB60_3
+	jal	zero, .LBB60_2
+.LBB60_2:                               #   in Loop: Header=BB60_1 Depth=1
+	lw	a0, -16(s0)
+	addi	a0, a0, 1
+	sw	a0, -16(s0)
+	jal	zero, .LBB60_1
+.LBB60_3:
+	lw	a0, -16(s0)
+	addi	a0, a0, 1
+	sw	a0, -16(s0)
+	lw	ra, 12(sp)                      # 4-byte Folded Reload
+	lw	s0, 8(sp)                       # 4-byte Folded Reload
+	addi	sp, sp, 16
+	jalr	zero, 0(ra)
+.Lfunc_end60:
+	.size	strlen, .Lfunc_end60-strlen
+                                        # -- End function
+	.globl	main                            # -- Begin function main
+	.p2align	2
+	.type	main,@function
+main:                                   # @main
+# %bb.0:
+	addi	sp, sp, -112
+	sw	ra, 108(sp)                     # 4-byte Folded Spill
+	sw	s0, 104(sp)                     # 4-byte Folded Spill
+	addi	s0, sp, 112
+	addi	a0, zero, 0
+	sw	a0, -12(s0)
+	sb	a0, -13(s0)
+	jal	zero, .LBB61_1
+.LBB61_1:                               # =>This Inner Loop Header: Depth=1
+	lbu	a1, -13(s0)
+	addi	a0, zero, 254
+	blt	a0, a1, .LBB61_4
+	jal	zero, .LBB61_2
+.LBB61_2:                               #   in Loop: Header=BB61_1 Depth=1
+	lui	a0, %hi(.L.str)
+	addi	a0, a0, %lo(.L.str)
+	addi	a1, s0, -29
+	sw	a1, -100(s0)                    # 4-byte Folded Spill
+	call	hex2bytes
+	lui	a0, %hi(.L.str.1)
+	addi	a0, a0, %lo(.L.str.1)
+	addi	a1, s0, -45
+	sw	a1, -104(s0)                    # 4-byte Folded Spill
+	call	hex2bytes
+	addi	a0, zero, 0
+	sw	a0, -68(s0)
+	sw	a0, -72(s0)
+	sw	a0, -76(s0)
+	lui	a1, 3
+	addi	a1, a1, -667
+	sw	a1, -80(s0)
+	lui	a1, 407063
+	addi	a1, a1, 628
+	sw	a1, -84(s0)
+	sh	a0, -88(s0)
+	sw	a0, -92(s0)
+	sw	a0, -96(s0)
+	lbu	a0, -13(s0)
+	addi	a1, s0, -96
+	sw	a1, -112(s0)                    # 4-byte Folded Spill
+	call	iota
+	lw	a1, -112(s0)                    # 4-byte Folded Reload
+	addi	a0, s0, -84
+	sw	a0, -108(s0)                    # 4-byte Folded Spill
+	addi	a2, zero, 20
+	call	strccat
+	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	call	strlen
+	addi	a1, a0, 0
+	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	call	write
+                                        # kill: def $x11 killed $x10
+	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	call	strlen
+	addi	a1, a0, 0
+	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	call	trace_set_name
+	lw	a1, -104(s0)                    # 4-byte Folded Reload
+                                        # kill: def $x12 killed $x10
+	lw	a0, -100(s0)                    # 4-byte Folded Reload
+	lbu	a2, -13(s0)
+	sb	a2, -45(s0)
+	addi	a2, zero, 16
+	addi	a3, s0, -61
+	call	AES_ECB_encrypt
+	jal	zero, .LBB61_3
+.LBB61_3:                               #   in Loop: Header=BB61_1 Depth=1
+	lbu	a0, -13(s0)
+	addi	a0, a0, 1
+	sb	a0, -13(s0)
+	jal	zero, .LBB61_1
+.LBB61_4:
+	addi	a0, zero, 0
+	lw	ra, 108(sp)                     # 4-byte Folded Reload
+	lw	s0, 104(sp)                     # 4-byte Folded Reload
+	addi	sp, sp, 112
+	jalr	zero, 0(ra)
+.Lfunc_end61:
+	.size	main, .Lfunc_end61-main
+                                        # -- End function
+	.p2align	2                               # -- Begin function iota
+	.type	iota,@function
+iota:                                   # @iota
 # %bb.0:
 	addi	sp, sp, -48
 	sw	ra, 44(sp)                      # 4-byte Folded Spill
@@ -4333,55 +4485,218 @@ check:                                  # @check
 	addi	s0, sp, 48
 	sw	a0, -12(s0)
 	sw	a1, -16(s0)
-	sw	a2, -20(s0)
-	sw	a3, -24(s0)
-	lw	a0, -20(s0)
-	lw	a1, -16(s0)
-	lw	a2, -24(s0)
-	call	memcmp
+	addi	a0, zero, 0
+	sb	a0, -18(s0)
+	lui	a0, 4
+	addi	a0, a0, -1736
+	sh	a0, -20(s0)
+	lui	a0, 226147
+	addi	a0, a0, 1332
+	sw	a0, -24(s0)
+	lui	a0, 209699
+	addi	a0, a0, 304
 	sw	a0, -28(s0)
-	lw	a0, -12(s0)
-	sw	a0, -40(s0)                     # 4-byte Folded Spill
-	call	strlen
-	addi	a1, a0, 0
-	lw	a0, -40(s0)                     # 4-byte Folded Reload
-	call	write
-	lui	a0, %hi(.L.str.8)
-	addi	a0, a0, %lo(.L.str.8)
+	lw	a0, -16(s0)
 	sw	a0, -32(s0)
-	lui	a0, %hi(.L.str.9)
-	addi	a0, a0, %lo(.L.str.9)
-	sw	a0, -36(s0)
-	lw	a0, -28(s0)
-	bne	a0, zero, .LBB58_2
-	jal	zero, .LBB58_1
-.LBB58_1:
+	jal	zero, .LBB62_1
+.LBB62_1:                               # =>This Inner Loop Header: Depth=1
+	lw	a0, -12(s0)
+	lui	a1, 419430
+	addi	a1, a1, 1639
+	mulh	a0, a0, a1
+	srli	a1, a0, 31
+	srai	a0, a0, 2
+	add	a0, a0, a1
+	beq	a0, zero, .LBB62_3
+	jal	zero, .LBB62_2
+.LBB62_2:                               #   in Loop: Header=BB62_1 Depth=1
+	lw	a0, -12(s0)
+	lui	a1, 419430
+	addi	a1, a1, 1639
+	mulh	a2, a0, a1
+	srli	a3, a2, 31
+	srai	a2, a2, 2
+	add	a2, a2, a3
+	addi	a3, zero, 10
+	mul	a2, a2, a3
+	sub	a2, a0, a2
+	addi	a0, s0, -28
+	add	a0, a0, a2
+	lbu	a0, 0(a0)
+	lw	a2, -32(s0)
+	sb	a0, 0(a2)
+	lw	a0, -12(s0)
+	mulh	a0, a0, a1
+	srli	a1, a0, 31
+	srai	a0, a0, 2
+	add	a0, a0, a1
+	sw	a0, -12(s0)
 	lw	a0, -32(s0)
-	sw	a0, -44(s0)                     # 4-byte Folded Spill
-	call	strlen
-	addi	a1, a0, 0
-	lw	a0, -44(s0)                     # 4-byte Folded Reload
-	call	write
-	jal	zero, .LBB58_3
-.LBB58_2:
-	lw	a0, -36(s0)
+	addi	a0, a0, 1
+	sw	a0, -32(s0)
+	jal	zero, .LBB62_1
+.LBB62_3:
+	lw	a0, -12(s0)
+	lui	a1, 419430
+	addi	a1, a1, 1639
+	mulh	a1, a0, a1
+	srli	a2, a1, 31
+	srai	a1, a1, 2
+	add	a1, a1, a2
+	addi	a2, zero, 10
+	mul	a1, a1, a2
+	sub	a1, a0, a1
+	addi	a0, s0, -28
+	add	a0, a0, a1
+	lbu	a0, 0(a0)
+	lw	a1, -32(s0)
+	addi	a2, a1, 1
+	sw	a2, -32(s0)
+	sb	a0, 0(a1)
+	lw	a1, -32(s0)
+	addi	a0, zero, 0
 	sw	a0, -48(s0)                     # 4-byte Folded Spill
+	sb	a0, 0(a1)
+	lw	a0, -16(s0)
 	call	strlen
 	addi	a1, a0, 0
 	lw	a0, -48(s0)                     # 4-byte Folded Reload
-	call	write
-	jal	zero, .LBB58_3
-.LBB58_3:
+	addi	a1, a1, -2
+	sw	a1, -36(s0)
+	sw	a0, -40(s0)
+	jal	zero, .LBB62_4
+.LBB62_4:                               # =>This Inner Loop Header: Depth=1
+	lw	a0, -36(s0)
+	lw	a1, -40(s0)
+	sub	a1, a0, a1
+	addi	a0, zero, 0
+	bge	a0, a1, .LBB62_6
+	jal	zero, .LBB62_5
+.LBB62_5:                               #   in Loop: Header=BB62_4 Depth=1
 	lw	a0, -16(s0)
-	addi	a1, zero, 204
-	addi	a2, zero, 73
-	call	memset
+	lw	a1, -40(s0)
+	add	a0, a0, a1
+	lbu	a0, 0(a0)
+	sb	a0, -41(s0)
+	lw	a1, -16(s0)
+	lw	a0, -36(s0)
+	add	a0, a1, a0
+	lbu	a0, 0(a0)
+	lw	a2, -40(s0)
+	addi	a3, a2, 1
+	sw	a3, -40(s0)
+	add	a1, a1, a2
+	sb	a0, 0(a1)
+	lbu	a0, -41(s0)
+	lw	a1, -16(s0)
+	lw	a2, -36(s0)
+	addi	a3, a2, -1
+	sw	a3, -36(s0)
+	add	a1, a1, a2
+	sb	a0, 0(a1)
+	jal	zero, .LBB62_4
+.LBB62_6:
 	lw	ra, 44(sp)                      # 4-byte Folded Reload
 	lw	s0, 40(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end58:
-	.size	check, .Lfunc_end58-check
+.Lfunc_end62:
+	.size	iota, .Lfunc_end62-iota
+                                        # -- End function
+	.p2align	2                               # -- Begin function strccat
+	.type	strccat,@function
+strccat:                                # @strccat
+# %bb.0:
+	addi	sp, sp, -32
+	sw	ra, 28(sp)                      # 4-byte Folded Spill
+	sw	s0, 24(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 32
+	sw	a0, -12(s0)
+	sw	a1, -16(s0)
+	sw	a2, -20(s0)
+	lw	a0, -12(s0)
+	call	strlen
+	sw	a0, -32(s0)                     # 4-byte Folded Spill
+	lw	a0, -16(s0)
+	call	strlen
+	addi	a1, a0, 0
+	lw	a0, -32(s0)                     # 4-byte Folded Reload
+	add	a0, a0, a1
+	addi	a1, a0, -1
+	lw	a0, -20(s0)
+	bgeu	a0, a1, .LBB63_2
+	jal	zero, .LBB63_1
+.LBB63_1:
+	jal	zero, .LBB63_8
+.LBB63_2:
+	lw	a0, -12(s0)
+	sw	a0, -24(s0)
+	jal	zero, .LBB63_3
+.LBB63_3:                               # =>This Inner Loop Header: Depth=1
+	lw	a0, -24(s0)
+	lbu	a0, 0(a0)
+	beq	a0, zero, .LBB63_5
+	jal	zero, .LBB63_4
+.LBB63_4:                               #   in Loop: Header=BB63_3 Depth=1
+	lw	a0, -24(s0)
+	addi	a0, a0, 1
+	sw	a0, -24(s0)
+	jal	zero, .LBB63_3
+.LBB63_5:
+	lw	a0, -16(s0)
+	sw	a0, -28(s0)
+	jal	zero, .LBB63_6
+.LBB63_6:                               # =>This Inner Loop Header: Depth=1
+	lw	a0, -28(s0)
+	lbu	a0, 0(a0)
+	beq	a0, zero, .LBB63_8
+	jal	zero, .LBB63_7
+.LBB63_7:                               #   in Loop: Header=BB63_6 Depth=1
+	lw	a0, -28(s0)
+	addi	a1, a0, 1
+	sw	a1, -28(s0)
+	lbu	a0, 0(a0)
+	lw	a1, -24(s0)
+	addi	a2, a1, 1
+	sw	a2, -24(s0)
+	sb	a0, 0(a1)
+	jal	zero, .LBB63_6
+.LBB63_8:
+	lw	ra, 28(sp)                      # 4-byte Folded Reload
+	lw	s0, 24(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 32
+	jalr	zero, 0(ra)
+.Lfunc_end63:
+	.size	strccat, .Lfunc_end63-strccat
+                                        # -- End function
+	.p2align	2                               # -- Begin function write
+	.type	write,@function
+write:                                  # @write
+# %bb.0:
+	addi	sp, sp, -32
+	sw	ra, 28(sp)                      # 4-byte Folded Spill
+	sw	s0, 24(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 32
+	sw	a0, -12(s0)
+	sw	a1, -16(s0)
+	lw	a0, -12(s0)
+	sw	a0, -20(s0)
+	lw	a0, -16(s0)
+	sw	a0, -24(s0)
+	lw	a0, -20(s0)
+	lw	a1, -24(s0)
+	#APP
+	addi	a7, zero, -2
+	ecall
+	#NO_APP
+	sw	a0, -28(s0)
+	lw	a0, -28(s0)
+	lw	ra, 28(sp)                      # 4-byte Folded Reload
+	lw	s0, 24(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 32
+	jalr	zero, 0(ra)
+.Lfunc_end64:
+	.size	write, .Lfunc_end64-write
                                         # -- End function
 	.p2align	2                               # -- Begin function AddRoundKey
 	.type	AddRoundKey,@function
@@ -4405,29 +4720,47 @@ AddRoundKey:                            # @AddRoundKey
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end59:
-	.size	AddRoundKey, .Lfunc_end59-AddRoundKey
+.Lfunc_end65:
+	.size	AddRoundKey, .Lfunc_end65-AddRoundKey
                                         # -- End function
 	.p2align	2                               # -- Begin function SubBytes
 	.type	SubBytes,@function
 SubBytes:                               # @SubBytes
 # %bb.0:
-	addi	sp, sp, -16
-	sw	ra, 12(sp)                      # 4-byte Folded Spill
-	sw	s0, 8(sp)                       # 4-byte Folded Spill
-	addi	s0, sp, 16
-	sw	a0, -12(s0)
+	addi	sp, sp, -48
+	sw	ra, 44(sp)                      # 4-byte Folded Spill
+	sw	s0, 40(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 48
+                                        # kill: def $x12 killed $x10
+	sb	a0, -9(s0)
+	sw	a1, -16(s0)
 	addi	a0, zero, 0
-	sb	a0, -13(s0)
-	jal	zero, .LBB60_1
-.LBB60_1:                               # =>This Inner Loop Header: Depth=1
-	lbu	a1, -13(s0)
+	sw	a0, -20(s0)
+	sw	a0, -24(s0)
+	sw	a0, -28(s0)
+	sw	a0, -32(s0)
+	sb	a0, -33(s0)
+	jal	zero, .LBB66_1
+.LBB66_1:                               # =>This Inner Loop Header: Depth=1
+	lbu	a1, -33(s0)
 	addi	a0, zero, 15
-	blt	a0, a1, .LBB60_4
-	jal	zero, .LBB60_2
-.LBB60_2:                               #   in Loop: Header=BB60_1 Depth=1
-	lw	a0, -12(s0)
-	lbu	a1, -13(s0)
+	blt	a0, a1, .LBB66_10
+	jal	zero, .LBB66_2
+.LBB66_2:                               #   in Loop: Header=BB66_1 Depth=1
+	lbu	a0, -9(s0)
+	bne	a0, zero, .LBB66_5
+	jal	zero, .LBB66_3
+.LBB66_3:                               #   in Loop: Header=BB66_1 Depth=1
+	lbu	a0, -33(s0)
+	bne	a0, zero, .LBB66_5
+	jal	zero, .LBB66_4
+.LBB66_4:                               #   in Loop: Header=BB66_1 Depth=1
+	call	trace_start
+	jal	zero, .LBB66_5
+.LBB66_5:                               #   in Loop: Header=BB66_1 Depth=1
+	call	trace_delay
+	lw	a0, -16(s0)
+	lbu	a1, -33(s0)
 	add	a1, a0, a1
 	lbu	a2, 0(a1)
 	lui	a0, %hi(sbox)
@@ -4435,19 +4768,30 @@ SubBytes:                               # @SubBytes
 	add	a0, a0, a2
 	lbu	a0, 0(a0)
 	sb	a0, 0(a1)
-	jal	zero, .LBB60_3
-.LBB60_3:                               #   in Loop: Header=BB60_1 Depth=1
-	lbu	a0, -13(s0)
+	lbu	a0, -9(s0)
+	bne	a0, zero, .LBB66_8
+	jal	zero, .LBB66_6
+.LBB66_6:                               #   in Loop: Header=BB66_1 Depth=1
+	lbu	a0, -33(s0)
+	bne	a0, zero, .LBB66_8
+	jal	zero, .LBB66_7
+.LBB66_7:                               #   in Loop: Header=BB66_1 Depth=1
+	call	trace_stop
+	jal	zero, .LBB66_8
+.LBB66_8:                               #   in Loop: Header=BB66_1 Depth=1
+	jal	zero, .LBB66_9
+.LBB66_9:                               #   in Loop: Header=BB66_1 Depth=1
+	lbu	a0, -33(s0)
 	addi	a0, a0, 1
-	sb	a0, -13(s0)
-	jal	zero, .LBB60_1
-.LBB60_4:
-	lw	ra, 12(sp)                      # 4-byte Folded Reload
-	lw	s0, 8(sp)                       # 4-byte Folded Reload
-	addi	sp, sp, 16
+	sb	a0, -33(s0)
+	jal	zero, .LBB66_1
+.LBB66_10:
+	lw	ra, 44(sp)                      # 4-byte Folded Reload
+	lw	s0, 40(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end60:
-	.size	SubBytes, .Lfunc_end60-SubBytes
+.Lfunc_end66:
+	.size	SubBytes, .Lfunc_end66-SubBytes
                                         # -- End function
 	.p2align	2                               # -- Begin function ShiftRows
 	.type	ShiftRows,@function
@@ -4510,8 +4854,8 @@ ShiftRows:                              # @ShiftRows
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end61:
-	.size	ShiftRows, .Lfunc_end61-ShiftRows
+.Lfunc_end67:
+	.size	ShiftRows, .Lfunc_end67-ShiftRows
                                         # -- End function
 	.p2align	2                               # -- Begin function MixColumns
 	.type	MixColumns,@function
@@ -4524,13 +4868,13 @@ MixColumns:                             # @MixColumns
 	sw	a0, -12(s0)
 	addi	a0, zero, 0
 	sb	a0, -17(s0)
-	jal	zero, .LBB62_1
-.LBB62_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB68_1
+.LBB68_1:                               # =>This Inner Loop Header: Depth=1
 	lbu	a1, -17(s0)
 	addi	a0, zero, 3
-	blt	a0, a1, .LBB62_4
-	jal	zero, .LBB62_2
-.LBB62_2:                               #   in Loop: Header=BB62_1 Depth=1
+	blt	a0, a1, .LBB68_4
+	jal	zero, .LBB68_2
+.LBB68_2:                               #   in Loop: Header=BB68_1 Depth=1
 	lw	a0, -12(s0)
 	lbu	a1, -17(s0)
 	slli	a1, a1, 2
@@ -4611,19 +4955,82 @@ MixColumns:                             # @MixColumns
 	lbu	a0, 3(a1)
 	xor	a0, a0, a2
 	sb	a0, 3(a1)
-	jal	zero, .LBB62_3
-.LBB62_3:                               #   in Loop: Header=BB62_1 Depth=1
+	jal	zero, .LBB68_3
+.LBB68_3:                               #   in Loop: Header=BB68_1 Depth=1
 	lbu	a0, -17(s0)
 	addi	a0, a0, 1
 	sb	a0, -17(s0)
-	jal	zero, .LBB62_1
-.LBB62_4:
+	jal	zero, .LBB68_1
+.LBB68_4:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end62:
-	.size	MixColumns, .Lfunc_end62-MixColumns
+.Lfunc_end68:
+	.size	MixColumns, .Lfunc_end68-MixColumns
+                                        # -- End function
+	.p2align	2                               # -- Begin function trace_start
+	.type	trace_start,@function
+trace_start:                            # @trace_start
+# %bb.0:
+	addi	sp, sp, -16
+	sw	ra, 12(sp)                      # 4-byte Folded Spill
+	sw	s0, 8(sp)                       # 4-byte Folded Spill
+	addi	s0, sp, 16
+	#APP
+	addi	a7, zero, -4
+	ecall
+	#NO_APP
+	sw	a0, -12(s0)
+	lw	a0, -12(s0)
+	lw	ra, 12(sp)                      # 4-byte Folded Reload
+	lw	s0, 8(sp)                       # 4-byte Folded Reload
+	addi	sp, sp, 16
+	jalr	zero, 0(ra)
+.Lfunc_end69:
+	.size	trace_start, .Lfunc_end69-trace_start
+                                        # -- End function
+	.p2align	2                               # -- Begin function trace_delay
+	.type	trace_delay,@function
+trace_delay:                            # @trace_delay
+# %bb.0:
+	addi	sp, sp, -16
+	sw	ra, 12(sp)                      # 4-byte Folded Spill
+	sw	s0, 8(sp)                       # 4-byte Folded Spill
+	addi	s0, sp, 16
+	#APP
+	addi	a7, zero, -7
+	ecall
+	#NO_APP
+	sw	a0, -12(s0)
+	lw	a0, -12(s0)
+	lw	ra, 12(sp)                      # 4-byte Folded Reload
+	lw	s0, 8(sp)                       # 4-byte Folded Reload
+	addi	sp, sp, 16
+	jalr	zero, 0(ra)
+.Lfunc_end70:
+	.size	trace_delay, .Lfunc_end70-trace_delay
+                                        # -- End function
+	.p2align	2                               # -- Begin function trace_stop
+	.type	trace_stop,@function
+trace_stop:                             # @trace_stop
+# %bb.0:
+	addi	sp, sp, -16
+	sw	ra, 12(sp)                      # 4-byte Folded Spill
+	sw	s0, 8(sp)                       # 4-byte Folded Spill
+	addi	s0, sp, 16
+	#APP
+	addi	a7, zero, -5
+	ecall
+	#NO_APP
+	sw	a0, -12(s0)
+	lw	a0, -12(s0)
+	lw	ra, 12(sp)                      # 4-byte Folded Reload
+	lw	s0, 8(sp)                       # 4-byte Folded Reload
+	addi	sp, sp, 16
+	jalr	zero, 0(ra)
+.Lfunc_end71:
+	.size	trace_stop, .Lfunc_end71-trace_stop
                                         # -- End function
 	.p2align	2                               # -- Begin function xtime
 	.type	xtime,@function
@@ -4647,8 +5054,8 @@ xtime:                                  # @xtime
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end63:
-	.size	xtime, .Lfunc_end63-xtime
+.Lfunc_end72:
+	.size	xtime, .Lfunc_end72-xtime
                                         # -- End function
 	.p2align	2                               # -- Begin function InvMixColumns
 	.type	InvMixColumns,@function
@@ -4661,13 +5068,13 @@ InvMixColumns:                          # @InvMixColumns
 	sw	a0, -12(s0)
 	addi	a0, zero, 0
 	sb	a0, -17(s0)
-	jal	zero, .LBB64_1
-.LBB64_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB73_1
+.LBB73_1:                               # =>This Inner Loop Header: Depth=1
 	lbu	a1, -17(s0)
 	addi	a0, zero, 3
-	blt	a0, a1, .LBB64_4
-	jal	zero, .LBB64_2
-.LBB64_2:                               #   in Loop: Header=BB64_1 Depth=1
+	blt	a0, a1, .LBB73_4
+	jal	zero, .LBB73_2
+.LBB73_2:                               #   in Loop: Header=BB73_1 Depth=1
 	lw	a0, -12(s0)
 	lbu	a1, -17(s0)
 	slli	a1, a1, 2
@@ -4720,19 +5127,19 @@ InvMixColumns:                          # @InvMixColumns
 	slli	a2, a2, 2
 	add	a1, a1, a2
 	sb	a0, 3(a1)
-	jal	zero, .LBB64_3
-.LBB64_3:                               #   in Loop: Header=BB64_1 Depth=1
+	jal	zero, .LBB73_3
+.LBB73_3:                               #   in Loop: Header=BB73_1 Depth=1
 	lbu	a0, -17(s0)
 	addi	a0, a0, 1
 	sb	a0, -17(s0)
-	jal	zero, .LBB64_1
-.LBB64_4:
+	jal	zero, .LBB73_1
+.LBB73_4:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end64:
-	.size	InvMixColumns, .Lfunc_end64-InvMixColumns
+.Lfunc_end73:
+	.size	InvMixColumns, .Lfunc_end73-InvMixColumns
                                         # -- End function
 	.p2align	2                               # -- Begin function InvShiftRows
 	.type	InvShiftRows,@function
@@ -4795,8 +5202,8 @@ InvShiftRows:                           # @InvShiftRows
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end65:
-	.size	InvShiftRows, .Lfunc_end65-InvShiftRows
+.Lfunc_end74:
+	.size	InvShiftRows, .Lfunc_end74-InvShiftRows
                                         # -- End function
 	.p2align	2                               # -- Begin function InvSubBytes
 	.type	InvSubBytes,@function
@@ -4809,13 +5216,13 @@ InvSubBytes:                            # @InvSubBytes
 	sw	a0, -12(s0)
 	addi	a0, zero, 0
 	sb	a0, -13(s0)
-	jal	zero, .LBB66_1
-.LBB66_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB75_1
+.LBB75_1:                               # =>This Inner Loop Header: Depth=1
 	lbu	a1, -13(s0)
 	addi	a0, zero, 15
-	blt	a0, a1, .LBB66_4
-	jal	zero, .LBB66_2
-.LBB66_2:                               #   in Loop: Header=BB66_1 Depth=1
+	blt	a0, a1, .LBB75_4
+	jal	zero, .LBB75_2
+.LBB75_2:                               #   in Loop: Header=BB75_1 Depth=1
 	lw	a0, -12(s0)
 	lbu	a1, -13(s0)
 	add	a1, a0, a1
@@ -4825,19 +5232,19 @@ InvSubBytes:                            # @InvSubBytes
 	add	a0, a0, a2
 	lbu	a0, 0(a0)
 	sb	a0, 0(a1)
-	jal	zero, .LBB66_3
-.LBB66_3:                               #   in Loop: Header=BB66_1 Depth=1
+	jal	zero, .LBB75_3
+.LBB75_3:                               #   in Loop: Header=BB75_1 Depth=1
 	lbu	a0, -13(s0)
 	addi	a0, a0, 1
 	sb	a0, -13(s0)
-	jal	zero, .LBB66_1
-.LBB66_4:
+	jal	zero, .LBB75_1
+.LBB75_4:
 	lw	ra, 12(sp)                      # 4-byte Folded Reload
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end66:
-	.size	InvSubBytes, .Lfunc_end66-InvSubBytes
+.Lfunc_end75:
+	.size	InvSubBytes, .Lfunc_end75-InvSubBytes
                                         # -- End function
 	.p2align	2                               # -- Begin function mixG8
 	.type	mixG8,@function
@@ -4896,8 +5303,8 @@ mixG8:                                  # @mixG8
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end67:
-	.size	mixG8, .Lfunc_end67-mixG8
+.Lfunc_end76:
+	.size	mixG8, .Lfunc_end76-mixG8
                                         # -- End function
 	.p2align	2                               # -- Begin function incBlock
 	.type	incBlock,@function
@@ -4910,8 +5317,8 @@ incBlock:                               # @incBlock
                                         # kill: def $x12 killed $x11
 	sw	a0, -12(s0)
 	sb	a1, -13(s0)
-	jal	zero, .LBB68_1
-.LBB68_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB77_1
+.LBB77_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -12(s0)
 	lbu	a1, -13(s0)
 	add	a2, a0, a1
@@ -4919,18 +5326,18 @@ incBlock:                               # @incBlock
 	addi	a1, a0, 1
 	andi	a0, a1, 255
 	sb	a1, 0(a2)
-	beq	a0, zero, .LBB68_3
-	jal	zero, .LBB68_2
-.LBB68_2:
-	jal	zero, .LBB68_8
-.LBB68_3:                               #   in Loop: Header=BB68_1 Depth=1
-	jal	zero, .LBB68_4
-.LBB68_4:                               #   in Loop: Header=BB68_1 Depth=1
+	beq	a0, zero, .LBB77_3
+	jal	zero, .LBB77_2
+.LBB77_2:
+	jal	zero, .LBB77_8
+.LBB77_3:                               #   in Loop: Header=BB77_1 Depth=1
+	jal	zero, .LBB77_4
+.LBB77_4:                               #   in Loop: Header=BB77_1 Depth=1
 	lbu	a1, -13(s0)
 	addi	a0, zero, 3
-	blt	a0, a1, .LBB68_6
-	jal	zero, .LBB68_5
-.LBB68_5:                               #   in Loop: Header=BB68_1 Depth=1
+	blt	a0, a1, .LBB77_6
+	jal	zero, .LBB77_5
+.LBB77_5:                               #   in Loop: Header=BB77_1 Depth=1
 	lbu	a0, -13(s0)
 	addi	a0, a0, 1
 	sb	a0, -13(s0)
@@ -4938,9 +5345,9 @@ incBlock:                               # @incBlock
 	addi	a2, zero, 1
 	addi	a1, zero, 4
 	sw	a2, -20(s0)                     # 4-byte Folded Spill
-	blt	a0, a1, .LBB68_7
-	jal	zero, .LBB68_6
-.LBB68_6:                               #   in Loop: Header=BB68_1 Depth=1
+	blt	a0, a1, .LBB77_7
+	jal	zero, .LBB77_6
+.LBB77_6:                               #   in Loop: Header=BB77_1 Depth=1
 	lbu	a0, -13(s0)
 	addi	a0, a0, -1
 	sb	a0, -13(s0)
@@ -4948,19 +5355,19 @@ incBlock:                               # @incBlock
 	slti	a0, a0, 9
 	xori	a0, a0, 1
 	sw	a0, -20(s0)                     # 4-byte Folded Spill
-	jal	zero, .LBB68_7
-.LBB68_7:                               #   in Loop: Header=BB68_1 Depth=1
+	jal	zero, .LBB77_7
+.LBB77_7:                               #   in Loop: Header=BB77_1 Depth=1
 	lw	a0, -20(s0)                     # 4-byte Folded Reload
 	andi	a0, a0, 1
-	bne	a0, zero, .LBB68_1
-	jal	zero, .LBB68_8
-.LBB68_8:
+	bne	a0, zero, .LBB77_1
+	jal	zero, .LBB77_8
+.LBB77_8:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end68:
-	.size	incBlock, .Lfunc_end68-incBlock
+.Lfunc_end77:
+	.size	incBlock, .Lfunc_end77-incBlock
                                         # -- End function
 	.p2align	2                               # -- Begin function copyLint
 	.type	copyLint,@function
@@ -4974,8 +5381,8 @@ copyLint:                               # @copyLint
 	sw	a0, -12(s0)
 	sw	a1, -16(s0)
 	sb	a2, -17(s0)
-	jal	zero, .LBB69_1
-.LBB69_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB78_1
+.LBB78_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -16(s0)
 	lw	a1, -12(s0)
 	lbu	a2, -17(s0)
@@ -4983,20 +5390,20 @@ copyLint:                               # @copyLint
 	sb	a3, -17(s0)
 	add	a1, a1, a2
 	sb	a0, 0(a1)
-	jal	zero, .LBB69_2
-.LBB69_2:                               #   in Loop: Header=BB69_1 Depth=1
+	jal	zero, .LBB78_2
+.LBB78_2:                               #   in Loop: Header=BB78_1 Depth=1
 	lw	a0, -16(s0)
 	srli	a0, a0, 8
 	sw	a0, -16(s0)
-	bne	a0, zero, .LBB69_1
-	jal	zero, .LBB69_3
-.LBB69_3:
+	bne	a0, zero, .LBB78_1
+	jal	zero, .LBB78_3
+.LBB78_3:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end69:
-	.size	copyLint, .Lfunc_end69-copyLint
+.Lfunc_end78:
+	.size	copyLint, .Lfunc_end78-copyLint
                                         # -- End function
 	.p2align	2                               # -- Begin function doubleLblock
 	.type	doubleLblock,@function
@@ -5010,13 +5417,13 @@ doubleLblock:                           # @doubleLblock
 	addi	a0, zero, 0
 	sw	a0, -20(s0)
 	sw	a0, -16(s0)
-	jal	zero, .LBB70_1
-.LBB70_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB79_1
+.LBB79_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a1, -16(s0)
 	addi	a0, zero, 15
-	blt	a0, a1, .LBB70_4
-	jal	zero, .LBB70_2
-.LBB70_2:                               #   in Loop: Header=BB70_1 Depth=1
+	blt	a0, a1, .LBB79_4
+	jal	zero, .LBB79_2
+.LBB79_2:                               #   in Loop: Header=BB79_1 Depth=1
 	lw	a0, -12(s0)
 	lw	a1, -16(s0)
 	add	a0, a0, a1
@@ -5032,13 +5439,13 @@ doubleLblock:                           # @doubleLblock
 	sw	a3, -16(s0)
 	add	a1, a1, a2
 	sb	a0, 0(a1)
-	jal	zero, .LBB70_3
-.LBB70_3:                               #   in Loop: Header=BB70_1 Depth=1
+	jal	zero, .LBB79_3
+.LBB79_3:                               #   in Loop: Header=BB79_1 Depth=1
 	lw	a0, -20(s0)
 	srai	a0, a0, 8
 	sw	a0, -20(s0)
-	jal	zero, .LBB70_1
-.LBB70_4:
+	jal	zero, .LBB79_1
+.LBB79_4:
 	lw	a0, -20(s0)
 	addi	a1, zero, 135
 	mul	a2, a0, a1
@@ -5050,8 +5457,8 @@ doubleLblock:                           # @doubleLblock
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end70:
-	.size	doubleLblock, .Lfunc_end70-doubleLblock
+.Lfunc_end79:
+	.size	doubleLblock, .Lfunc_end79-doubleLblock
                                         # -- End function
 	.p2align	2                               # -- Begin function xMac
 	.type	xMac,@function
@@ -5071,14 +5478,14 @@ xMac:                                   # @xMac
 	sw	a0, -36(s0)
 	lw	a0, -12(s0)
 	sw	a0, -32(s0)
-	jal	zero, .LBB71_1
-.LBB71_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB80_1
+.LBB80_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -36(s0)
 	addi	a1, a0, -1
 	sw	a1, -36(s0)
-	beq	a0, zero, .LBB71_4
-	jal	zero, .LBB71_2
-.LBB71_2:                               #   in Loop: Header=BB71_1 Depth=1
+	beq	a0, zero, .LBB80_4
+	jal	zero, .LBB80_2
+.LBB80_2:                               #   in Loop: Header=BB80_1 Depth=1
 	lw	a0, -32(s0)
 	lw	a1, -28(s0)
 	call	xorBlock
@@ -5086,27 +5493,27 @@ xMac:                                   # @xMac
 	lw	a0, -20(s0)
 	lw	a1, -28(s0)
 	jalr	ra, 0(a2)
-	jal	zero, .LBB71_3
-.LBB71_3:                               #   in Loop: Header=BB71_1 Depth=1
+	jal	zero, .LBB80_3
+.LBB80_3:                               #   in Loop: Header=BB80_1 Depth=1
 	lw	a0, -32(s0)
 	addi	a0, a0, 16
 	sw	a0, -32(s0)
-	jal	zero, .LBB71_1
-.LBB71_4:
+	jal	zero, .LBB80_1
+.LBB80_4:
 	lw	a0, -16(s0)
 	andi	a0, a0, 15
 	sw	a0, -36(s0)
-	beq	a0, zero, .LBB71_9
-	jal	zero, .LBB71_5
-.LBB71_5:
-	jal	zero, .LBB71_6
-.LBB71_6:                               # =>This Inner Loop Header: Depth=1
+	beq	a0, zero, .LBB80_9
+	jal	zero, .LBB80_5
+.LBB80_5:
+	jal	zero, .LBB80_6
+.LBB80_6:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -36(s0)
 	addi	a1, a0, -1
 	sw	a1, -36(s0)
-	beq	a0, zero, .LBB71_8
-	jal	zero, .LBB71_7
-.LBB71_7:                               #   in Loop: Header=BB71_6 Depth=1
+	beq	a0, zero, .LBB80_8
+	jal	zero, .LBB80_7
+.LBB80_7:                               #   in Loop: Header=BB80_6 Depth=1
 	lw	a0, -32(s0)
 	lw	a1, -36(s0)
 	add	a0, a0, a1
@@ -5116,20 +5523,20 @@ xMac:                                   # @xMac
 	lbu	a0, 0(a1)
 	xor	a0, a0, a2
 	sb	a0, 0(a1)
-	jal	zero, .LBB71_6
-.LBB71_8:
+	jal	zero, .LBB80_6
+.LBB80_8:
 	lw	a2, -24(s0)
 	lw	a0, -20(s0)
 	lw	a1, -28(s0)
 	jalr	ra, 0(a2)
-	jal	zero, .LBB71_9
-.LBB71_9:
+	jal	zero, .LBB80_9
+.LBB80_9:
 	lw	ra, 44(sp)                      # 4-byte Folded Reload
 	lw	s0, 40(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end71:
-	.size	xMac, .Lfunc_end71-xMac
+.Lfunc_end80:
+	.size	xMac, .Lfunc_end80-xMac
                                         # -- End function
 	.p2align	2                               # -- Begin function mulGF128
 	.type	mulGF128,@function
@@ -5147,53 +5554,53 @@ mulGF128:                               # @mulGF128
 	sw	a0, -32(s0)
 	sw	a0, -36(s0)
 	sb	a0, -18(s0)
-	jal	zero, .LBB72_1
-.LBB72_1:                               # =>This Loop Header: Depth=1
-                                        #     Child Loop BB72_3 Depth 2
+	jal	zero, .LBB81_1
+.LBB81_1:                               # =>This Loop Header: Depth=1
+                                        #     Child Loop BB81_3 Depth 2
 	lbu	a1, -18(s0)
 	addi	a0, zero, 15
-	blt	a0, a1, .LBB72_10
-	jal	zero, .LBB72_2
-.LBB72_2:                               #   in Loop: Header=BB72_1 Depth=1
+	blt	a0, a1, .LBB81_10
+	jal	zero, .LBB81_2
+.LBB81_2:                               #   in Loop: Header=BB81_1 Depth=1
 	addi	a0, zero, 128
 	sb	a0, -17(s0)
-	jal	zero, .LBB72_3
-.LBB72_3:                               #   Parent Loop BB72_1 Depth=1
+	jal	zero, .LBB81_3
+.LBB81_3:                               #   Parent Loop BB81_1 Depth=1
                                         # =>  This Inner Loop Header: Depth=2
 	lbu	a0, -17(s0)
-	beq	a0, zero, .LBB72_8
-	jal	zero, .LBB72_4
-.LBB72_4:                               #   in Loop: Header=BB72_3 Depth=2
+	beq	a0, zero, .LBB81_8
+	jal	zero, .LBB81_4
+.LBB81_4:                               #   in Loop: Header=BB81_3 Depth=2
 	lw	a0, -12(s0)
 	lbu	a1, -18(s0)
 	add	a0, a0, a1
 	lbu	a0, 0(a0)
 	lbu	a1, -17(s0)
 	and	a0, a0, a1
-	beq	a0, zero, .LBB72_6
-	jal	zero, .LBB72_5
-.LBB72_5:                               #   in Loop: Header=BB72_3 Depth=2
+	beq	a0, zero, .LBB81_6
+	jal	zero, .LBB81_5
+.LBB81_5:                               #   in Loop: Header=BB81_3 Depth=2
 	lw	a0, -16(s0)
 	addi	a1, s0, -36
 	call	xorBlock
-	jal	zero, .LBB72_6
-.LBB72_6:                               #   in Loop: Header=BB72_3 Depth=2
+	jal	zero, .LBB81_6
+.LBB81_6:                               #   in Loop: Header=BB81_3 Depth=2
 	lw	a0, -16(s0)
 	call	divideBblock
-	jal	zero, .LBB72_7
-.LBB72_7:                               #   in Loop: Header=BB72_3 Depth=2
+	jal	zero, .LBB81_7
+.LBB81_7:                               #   in Loop: Header=BB81_3 Depth=2
 	lbu	a0, -17(s0)
 	srli	a0, a0, 1
 	sb	a0, -17(s0)
-	jal	zero, .LBB72_3
-.LBB72_8:                               #   in Loop: Header=BB72_1 Depth=1
-	jal	zero, .LBB72_9
-.LBB72_9:                               #   in Loop: Header=BB72_1 Depth=1
+	jal	zero, .LBB81_3
+.LBB81_8:                               #   in Loop: Header=BB81_1 Depth=1
+	jal	zero, .LBB81_9
+.LBB81_9:                               #   in Loop: Header=BB81_1 Depth=1
 	lbu	a0, -18(s0)
 	addi	a0, a0, 1
 	sb	a0, -18(s0)
-	jal	zero, .LBB72_1
-.LBB72_10:
+	jal	zero, .LBB81_1
+.LBB81_10:
 	lw	a0, -16(s0)
 	addi	a1, s0, -36
 	addi	a2, zero, 16
@@ -5202,8 +5609,8 @@ mulGF128:                               # @mulGF128
 	lw	s0, 40(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end72:
-	.size	mulGF128, .Lfunc_end72-mulGF128
+.Lfunc_end81:
+	.size	mulGF128, .Lfunc_end81-mulGF128
                                         # -- End function
 	.p2align	2                               # -- Begin function divideBblock
 	.type	divideBblock,@function
@@ -5217,13 +5624,13 @@ divideBblock:                           # @divideBblock
 	addi	a0, zero, 0
 	sw	a0, -20(s0)
 	sw	a0, -16(s0)
-	jal	zero, .LBB73_1
-.LBB73_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB82_1
+.LBB82_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a1, -16(s0)
 	addi	a0, zero, 15
-	bltu	a0, a1, .LBB73_4
-	jal	zero, .LBB73_2
-.LBB73_2:                               #   in Loop: Header=BB73_1 Depth=1
+	bltu	a0, a1, .LBB82_4
+	jal	zero, .LBB82_2
+.LBB82_2:                               #   in Loop: Header=BB82_1 Depth=1
 	lw	a0, -20(s0)
 	slli	a0, a0, 8
 	lw	a1, -12(s0)
@@ -5238,30 +5645,30 @@ divideBblock:                           # @divideBblock
 	lw	a2, -16(s0)
 	add	a1, a1, a2
 	sb	a0, 0(a1)
-	jal	zero, .LBB73_3
-.LBB73_3:                               #   in Loop: Header=BB73_1 Depth=1
+	jal	zero, .LBB82_3
+.LBB82_3:                               #   in Loop: Header=BB82_1 Depth=1
 	lw	a0, -16(s0)
 	addi	a0, a0, 1
 	sw	a0, -16(s0)
-	jal	zero, .LBB73_1
-.LBB73_4:
+	jal	zero, .LBB82_1
+.LBB82_4:
 	lbu	a0, -20(s0)
 	andi	a0, a0, 1
-	beq	a0, zero, .LBB73_6
-	jal	zero, .LBB73_5
-.LBB73_5:
+	beq	a0, zero, .LBB82_6
+	jal	zero, .LBB82_5
+.LBB82_5:
 	lw	a1, -12(s0)
 	lbu	a0, 0(a1)
 	xori	a0, a0, 225
 	sb	a0, 0(a1)
-	jal	zero, .LBB73_6
-.LBB73_6:
+	jal	zero, .LBB82_6
+.LBB82_6:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end73:
-	.size	divideBblock, .Lfunc_end73-divideBblock
+.Lfunc_end82:
+	.size	divideBblock, .Lfunc_end82-divideBblock
                                         # -- End function
 	.p2align	2                               # -- Begin function dotGF128
 	.type	dotGF128,@function
@@ -5280,24 +5687,24 @@ dotGF128:                               # @dotGF128
 	sw	a0, -36(s0)
 	addi	a0, zero, 16
 	sb	a0, -18(s0)
-	jal	zero, .LBB74_1
-.LBB74_1:                               # =>This Loop Header: Depth=1
-                                        #     Child Loop BB74_3 Depth 2
+	jal	zero, .LBB83_1
+.LBB83_1:                               # =>This Loop Header: Depth=1
+                                        #     Child Loop BB83_3 Depth 2
 	lbu	a0, -18(s0)
 	addi	a1, a0, -1
 	sb	a1, -18(s0)
-	beq	a0, zero, .LBB74_9
-	jal	zero, .LBB74_2
-.LBB74_2:                               #   in Loop: Header=BB74_1 Depth=1
+	beq	a0, zero, .LBB83_9
+	jal	zero, .LBB83_2
+.LBB83_2:                               #   in Loop: Header=BB83_1 Depth=1
 	addi	a0, zero, 128
 	sb	a0, -17(s0)
-	jal	zero, .LBB74_3
-.LBB74_3:                               #   Parent Loop BB74_1 Depth=1
+	jal	zero, .LBB83_3
+.LBB83_3:                               #   Parent Loop BB83_1 Depth=1
                                         # =>  This Inner Loop Header: Depth=2
 	lbu	a0, -17(s0)
-	beq	a0, zero, .LBB74_8
-	jal	zero, .LBB74_4
-.LBB74_4:                               #   in Loop: Header=BB74_3 Depth=2
+	beq	a0, zero, .LBB83_8
+	jal	zero, .LBB83_4
+.LBB83_4:                               #   in Loop: Header=BB83_3 Depth=2
 	lw	a0, -16(s0)
 	call	divideLblock
 	lw	a0, -12(s0)
@@ -5306,23 +5713,23 @@ dotGF128:                               # @dotGF128
 	lbu	a0, 0(a0)
 	lbu	a1, -17(s0)
 	and	a0, a0, a1
-	beq	a0, zero, .LBB74_6
-	jal	zero, .LBB74_5
-.LBB74_5:                               #   in Loop: Header=BB74_3 Depth=2
+	beq	a0, zero, .LBB83_6
+	jal	zero, .LBB83_5
+.LBB83_5:                               #   in Loop: Header=BB83_3 Depth=2
 	lw	a0, -16(s0)
 	addi	a1, s0, -36
 	call	xorBlock
-	jal	zero, .LBB74_6
-.LBB74_6:                               #   in Loop: Header=BB74_3 Depth=2
-	jal	zero, .LBB74_7
-.LBB74_7:                               #   in Loop: Header=BB74_3 Depth=2
+	jal	zero, .LBB83_6
+.LBB83_6:                               #   in Loop: Header=BB83_3 Depth=2
+	jal	zero, .LBB83_7
+.LBB83_7:                               #   in Loop: Header=BB83_3 Depth=2
 	lbu	a0, -17(s0)
 	srli	a0, a0, 1
 	sb	a0, -17(s0)
-	jal	zero, .LBB74_3
-.LBB74_8:                               #   in Loop: Header=BB74_1 Depth=1
-	jal	zero, .LBB74_1
-.LBB74_9:
+	jal	zero, .LBB83_3
+.LBB83_8:                               #   in Loop: Header=BB83_1 Depth=1
+	jal	zero, .LBB83_1
+.LBB83_9:
 	lw	a0, -16(s0)
 	addi	a1, s0, -36
 	addi	a2, zero, 16
@@ -5331,8 +5738,8 @@ dotGF128:                               # @dotGF128
 	lw	s0, 40(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end74:
-	.size	dotGF128, .Lfunc_end74-dotGF128
+.Lfunc_end83:
+	.size	dotGF128, .Lfunc_end83-dotGF128
                                         # -- End function
 	.p2align	2                               # -- Begin function divideLblock
 	.type	divideLblock,@function
@@ -5347,14 +5754,14 @@ divideLblock:                           # @divideLblock
 	sw	a0, -16(s0)
 	addi	a0, zero, 16
 	sw	a0, -20(s0)
-	jal	zero, .LBB75_1
-.LBB75_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB84_1
+.LBB84_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -20(s0)
 	addi	a1, a0, -1
 	sw	a1, -20(s0)
-	beq	a0, zero, .LBB75_3
-	jal	zero, .LBB75_2
-.LBB75_2:                               #   in Loop: Header=BB75_1 Depth=1
+	beq	a0, zero, .LBB84_3
+	jal	zero, .LBB84_2
+.LBB84_2:                               #   in Loop: Header=BB84_1 Depth=1
 	lw	a0, -16(s0)
 	slli	a0, a0, 8
 	lw	a1, -12(s0)
@@ -5369,25 +5776,25 @@ divideLblock:                           # @divideLblock
 	lw	a2, -20(s0)
 	add	a1, a1, a2
 	sb	a0, 0(a1)
-	jal	zero, .LBB75_1
-.LBB75_3:
+	jal	zero, .LBB84_1
+.LBB84_3:
 	lbu	a0, -16(s0)
 	andi	a0, a0, 1
-	beq	a0, zero, .LBB75_5
-	jal	zero, .LBB75_4
-.LBB75_4:
+	beq	a0, zero, .LBB84_5
+	jal	zero, .LBB84_4
+.LBB84_4:
 	lw	a1, -12(s0)
 	lbu	a0, 15(a1)
 	xori	a0, a0, 225
 	sb	a0, 15(a1)
-	jal	zero, .LBB75_5
-.LBB75_5:
+	jal	zero, .LBB84_5
+.LBB84_5:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end75:
-	.size	divideLblock, .Lfunc_end75-divideLblock
+.Lfunc_end84:
+	.size	divideLblock, .Lfunc_end84-divideLblock
                                         # -- End function
 	.p2align	2                               # -- Begin function nop
 	.type	nop,@function
@@ -5403,8 +5810,8 @@ nop:                                    # @nop
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end76:
-	.size	nop, .Lfunc_end76-nop
+.Lfunc_end85:
+	.size	nop, .Lfunc_end85-nop
                                         # -- End function
 	.p2align	2                               # -- Begin function getDelta
 	.type	getDelta,@function
@@ -5429,16 +5836,16 @@ getDelta:                               # @getDelta
 	lw	a0, -24(s0)
 	lw	a1, -20(s0)
 	call	memcpy
-	jal	zero, .LBB77_1
-.LBB77_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB86_1
+.LBB86_1:                               # =>This Inner Loop Header: Depth=1
 	lw	a0, -12(s0)
 	lw	a1, -32(s0)
 	sub	a0, a0, a1
 	sw	a0, -28(s0)
 	lw	a1, -12(s0)
-	bgeu	a0, a1, .LBB77_5
-	jal	zero, .LBB77_2
-.LBB77_2:                               #   in Loop: Header=BB77_1 Depth=1
+	bgeu	a0, a1, .LBB86_5
+	jal	zero, .LBB86_2
+.LBB86_2:                               #   in Loop: Header=BB86_1 Depth=1
 	addi	a0, s0, -48
 	call	doubleBblock
 	lw	a0, -32(s0)
@@ -5448,84 +5855,22 @@ getDelta:                               # @getDelta
 	and	a0, a0, a1
 	sw	a0, -28(s0)
 	lw	a0, -28(s0)
-	bne	a0, zero, .LBB77_4
-	jal	zero, .LBB77_3
-.LBB77_3:                               #   in Loop: Header=BB77_1 Depth=1
+	bne	a0, zero, .LBB86_4
+	jal	zero, .LBB86_3
+.LBB86_3:                               #   in Loop: Header=BB86_1 Depth=1
 	lw	a1, -24(s0)
 	addi	a0, s0, -48
 	call	xorBlock
-	jal	zero, .LBB77_4
-.LBB77_4:                               #   in Loop: Header=BB77_1 Depth=1
-	jal	zero, .LBB77_1
-.LBB77_5:
+	jal	zero, .LBB86_4
+.LBB86_4:                               #   in Loop: Header=BB86_1 Depth=1
+	jal	zero, .LBB86_1
+.LBB86_5:
 	lw	ra, 60(sp)                      # 4-byte Folded Reload
 	lw	s0, 56(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 64
 	jalr	zero, 0(ra)
-.Lfunc_end77:
-	.size	getDelta, .Lfunc_end77-getDelta
-                                        # -- End function
-	.p2align	2                               # -- Begin function write
-	.type	write,@function
-write:                                  # @write
-# %bb.0:
-	addi	sp, sp, -32
-	sw	ra, 28(sp)                      # 4-byte Folded Spill
-	sw	s0, 24(sp)                      # 4-byte Folded Spill
-	addi	s0, sp, 32
-	sw	a0, -12(s0)
-	sw	a1, -16(s0)
-	lw	a0, -12(s0)
-	sw	a0, -20(s0)
-	lw	a0, -16(s0)
-	sw	a0, -24(s0)
-	lw	a0, -20(s0)
-	lw	a1, -24(s0)
-	#APP
-	addi	a7, zero, -2
-	ecall
-	#NO_APP
-	sw	a0, -28(s0)
-	lw	a0, -28(s0)
-	lw	ra, 28(sp)                      # 4-byte Folded Reload
-	lw	s0, 24(sp)                      # 4-byte Folded Reload
-	addi	sp, sp, 32
-	jalr	zero, 0(ra)
-.Lfunc_end78:
-	.size	write, .Lfunc_end78-write
-                                        # -- End function
-	.p2align	2                               # -- Begin function strlen
-	.type	strlen,@function
-strlen:                                 # @strlen
-# %bb.0:
-	addi	sp, sp, -16
-	sw	ra, 12(sp)                      # 4-byte Folded Spill
-	sw	s0, 8(sp)                       # 4-byte Folded Spill
-	addi	s0, sp, 16
-	sw	a0, -12(s0)
-	addi	a0, zero, 0
-	sw	a0, -16(s0)
-	jal	zero, .LBB79_1
-.LBB79_1:                               # =>This Inner Loop Header: Depth=1
-	lw	a0, -12(s0)
-	lw	a1, -16(s0)
-	add	a0, a0, a1
-	lbu	a0, 0(a0)
-	beq	a0, zero, .LBB79_3
-	jal	zero, .LBB79_2
-.LBB79_2:                               #   in Loop: Header=BB79_1 Depth=1
-	lw	a0, -16(s0)
-	addi	a0, a0, 1
-	sw	a0, -16(s0)
-	jal	zero, .LBB79_1
-.LBB79_3:
-	lw	a0, -16(s0)
-	lw	ra, 12(sp)                      # 4-byte Folded Reload
-	lw	s0, 8(sp)                       # 4-byte Folded Reload
-	addi	sp, sp, 16
-	jalr	zero, 0(ra)
-.Lfunc_end79:
-	.size	strlen, .Lfunc_end79-strlen
+.Lfunc_end86:
+	.size	getDelta, .Lfunc_end86-getDelta
                                         # -- End function
 	.type	RoundKey,@object                # @RoundKey
 	.local	RoundKey
@@ -5550,56 +5895,24 @@ strlen:                                 # @strlen
 	.zero	16
 	.size	.L__const.AES_Poly1305.rk, 17
 
-	.type	cipherKey,@object               # @cipherKey
-	.data
-	.p2align	2, 0x0
-cipherKey:
-	.word	.L.str.2
-	.size	cipherKey, 4
-
-	.type	secondKey,@object               # @secondKey
-	.p2align	2, 0x0
-secondKey:
-	.word	.L.str.3
-	.size	secondKey, 4
-
-	.type	secretKey,@object               # @secretKey
-	.p2align	2, 0x0
-secretKey:
-	.word	.L.str.4
-	.size	secretKey, 4
-
-	.type	iVec,@object                    # @iVec
-	.p2align	2, 0x0
-iVec:
-	.word	.L.str.5
-	.size	iVec, 4
-
-	.type	plainText,@object               # @plainText
-	.p2align	2, 0x0
-plainText:
-	.word	.L.str.6
-	.size	plainText, 4
-
-	.type	ecbcipher,@object               # @ecbcipher
-	.p2align	2, 0x0
-ecbcipher:
-	.word	.L.str.7
-	.size	ecbcipher, 4
-
 	.type	.L.str,@object                  # @.str
 	.section	.rodata.str1.1,"aMS",@progbits,1
 .L.str:
-	.asciz	"ECB encryption"
-	.size	.L.str, 15
+	.asciz	"1abc65ffffffffffffffffffffffffff"
+	.size	.L.str, 33
 
 	.type	.L.str.1,@object                # @.str.1
 .L.str.1:
-	.asciz	"ECB decryption"
-	.size	.L.str.1, 15
+	.asciz	"00ffffffffffffffffffffffffffffff"
+	.size	.L.str.1, 33
+
+	.type	.L__const.main.trace_name,@object # @__const.main.trace_name
+	.section	.rodata,"a",@progbits
+.L__const.main.trace_name:
+	.asciz	"trace-\000\000\000\000\000\000\000\000\000\000\000\000\000"
+	.size	.L__const.main.trace_name, 20
 
 	.type	sbox,@object                    # @sbox
-	.section	.rodata,"a",@progbits
 sbox:
 	.ascii	"c|w{\362ko\3050\001g+\376\327\253v\312\202\311}\372YG\360\255\324\242\257\234\244r\300\267\375\223&6?\367\3144\245\345\361q\3301\025\004\307#\303\030\226\005\232\007\022\200\342\353'\262u\t\203,\032\033nZ\240R;\326\263)\343/\204S\321\000\355 \374\261[j\313\2769JLX\317\320\357\252\373CM3\205E\371\002\177P<\237\250Q\243@\217\222\2358\365\274\266\332!\020\377\363\322\315\f\023\354_\227D\027\304\247~=d]\031s`\201O\334\"*\220\210F\356\270\024\336^\013\333\3402:\nI\006$\\\302\323\254b\221\225\344y\347\3107m\215\325N\251lV\364\352ez\256\b\272x%.\034\246\264\306\350\335t\037K\275\213\212p>\265fH\003\366\016a5W\271\206\301\035\236\341\370\230\021i\331\216\224\233\036\207\351\316U(\337\214\241\211\r\277\346BhA\231-\017\260T\273\026"
 	.size	sbox, 256
@@ -5609,48 +5922,13 @@ rsbox:
 	.ascii	"R\tj\32506\2458\277@\243\236\201\363\327\373|\3439\202\233/\377\2074\216CD\304\336\351\313T{\2242\246\302#=\356L\225\013B\372\303N\b.\241f(\331$\262v[\242Im\213\321%r\370\366d\206h\230\026\324\244\\\314]e\266\222lpHP\375\355\271\332^\025FW\247\215\235\204\220\330\253\000\214\274\323\n\367\344X\005\270\263E\006\320,\036\217\312?\017\002\301\257\275\003\001\023\212k:\221\021AOg\334\352\227\362\317\316\360\264\346s\226\254t\"\347\2555\205\342\3717\350\034u\337nG\361\032q\035)\305\211o\267b\016\252\030\276\033\374V>K\306\322y \232\333\300\376x\315Z\364\037\335\2503\210\007\3071\261\022\020Y'\200\354_`Q\177\251\031\265J\r-\345z\237\223\311\234\357\240\340;M\256*\365\260\310\353\273<\203S\231a\027+\004~\272w\326&\341i\024cU!\f}"
 	.size	rsbox, 256
 
-	.type	.L.str.2,@object                # @.str.2
+	.type	.L__const.iota.abc,@object      # @__const.iota.abc
 	.section	.rodata.str1.1,"aMS",@progbits,1
-.L.str.2:
-	.asciz	"279fb74a7572135e 8f9b8ef6d1eee003 69c4e0d86a7b0430 d8cdb78070b4c55a"
-	.size	.L.str.2, 68
+.L__const.iota.abc:
+	.asciz	"0123456789"
+	.size	.L__const.iota.abc, 11
 
-	.type	.L.str.3,@object                # @.str.3
-.L.str.3:
-	.asciz	"0011223344556677 8899AABBCCDDEEFF 0001020304050607 08090A0B0C0D0E0F"
-	.size	.L.str.3, 68
-
-	.type	.L.str.4,@object                # @.str.4
-.L.str.4:
-	.asciz	"0001020304050607 08090A0B0C0D0E0F 1011121314151617 18191A1B1C1D1E1F"
-	.size	.L.str.4, 68
-
-	.type	.L.str.5,@object                # @.str.5
-.L.str.5:
-	.asciz	"8EA2B7CA516745BF EAfc49904b496089"
-	.size	.L.str.5, 34
-
-	.type	.L.str.6,@object                # @.str.6
-.L.str.6:
-	.asciz	"c9f775baafa36c25 cd610d3c75a482ea dda97ca4864cdfe0 6eaf70a0ec0d7191d55027cf8f900214 e634412583ff0b47 8EA2B7CA516745BF EA"
-	.size	.L.str.6, 121
-
-	.type	.L.str.7,@object                # @.str.7
-.L.str.7:
-	.asciz	"5d00c273f8b2607d a834632dcbb521f4 697dd4ab20bb0645 32a6545e24e33ae9f545176111f93773 dbecd262841cf83b 10d145e71b772cf7 a12889cda84be795"
-	.size	.L.str.7, 135
-
-	.type	.L.str.8,@object                # @.str.8
-.L.str.8:
-	.asciz	"AES test run successfully!\n"
-	.size	.L.str.8, 28
-
-	.type	.L.str.9,@object                # @.str.9
-.L.str.9:
-	.asciz	"AES test run failed!\n"
-	.size	.L.str.9, 22
-
-	.ident	"clang version 21.1.8"
+	.ident	"Debian clang version 17.0.6 (++20231208085813+6009708b4367-1~exp1~20231208085906.81)"
 	.section	".note.GNU-stack","",@progbits
 	.addrsig
 	.addrsig_sym AES_ECB_encrypt
@@ -5658,7 +5936,6 @@ rsbox:
 	.addrsig_sym KeyExpansion
 	.addrsig_sym rijndaelEncrypt
 	.addrsig_sym padBlock
-	.addrsig_sym AES_ECB_decrypt
 	.addrsig_sym rijndaelDecrypt
 	.addrsig_sym xorBlock
 	.addrsig_sym mixThenXor
@@ -5686,11 +5963,19 @@ rsbox:
 	.addrsig_sym addLblocks
 	.addrsig_sym modP1305
 	.addrsig_sym hex2bytes
-	.addrsig_sym check
+	.addrsig_sym read
+	.addrsig_sym trace_set_name
+	.addrsig_sym strlen
+	.addrsig_sym iota
+	.addrsig_sym strccat
+	.addrsig_sym write
 	.addrsig_sym AddRoundKey
 	.addrsig_sym SubBytes
 	.addrsig_sym ShiftRows
 	.addrsig_sym MixColumns
+	.addrsig_sym trace_start
+	.addrsig_sym trace_delay
+	.addrsig_sym trace_stop
 	.addrsig_sym xtime
 	.addrsig_sym InvMixColumns
 	.addrsig_sym InvShiftRows
@@ -5706,14 +5991,6 @@ rsbox:
 	.addrsig_sym divideLblock
 	.addrsig_sym nop
 	.addrsig_sym getDelta
-	.addrsig_sym write
-	.addrsig_sym strlen
 	.addrsig_sym RoundKey
-	.addrsig_sym cipherKey
-	.addrsig_sym secondKey
-	.addrsig_sym secretKey
-	.addrsig_sym iVec
-	.addrsig_sym plainText
-	.addrsig_sym ecbcipher
 	.addrsig_sym sbox
 	.addrsig_sym rsbox

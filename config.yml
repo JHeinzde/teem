@@ -48,4 +48,4 @@ Rollback:
    Snapshots: False
 
 PowerTraces:
-    random_noise: True
+    random_noise: False
