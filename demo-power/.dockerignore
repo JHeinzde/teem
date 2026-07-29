@@ -1,0 +1,9 @@
+# Compiled assembly outputs — not needed in the build context
+*.s
+
+# Documentation
+*.md
+
+# Git metadata
+.git
+.gitignore

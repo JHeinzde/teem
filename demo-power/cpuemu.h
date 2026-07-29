@@ -13,6 +13,7 @@
 #define _EMUNR_trace_stop  -5
 #define _EMNUR_trace_set_name -6
 #define _EMNUR_trace_delay -7
+#define _EMUNR_trace_set_metadata -8
 
 /* Conventional stringification macros. */
 #define __STR(x) #x
@@ -88,8 +89,8 @@ static inline void flushall(void) {
     _EMU_SYSCALL(rv, no, "r"(a1), "r"(a2))
 #define _EMU_SYSCALL3(rv, no)             \
     _EMU_SYSCALL(rv, no)
-#define _EMU_SYSCALL4(rv, no)             \
-    _EMU_SYSCALL(rv, no)
+#define _EMU_SYSCALL4(rv, no, a1, a2, a3, a4)                 \
+    _EMU_SYSCALL(rv, no, "r"(a1), "r"(a2), "r"(a3), "r"(a4))
 #define _EMU_SYSCALL5(rv, no, a1, a2)     \
     _EMU_SYSCALL(rv, no, "r"(a1), "r"(a2))
 #define _EMU_SYSCALL6(rv, no) \
@@ -132,9 +133,12 @@ static inline int read(void *__buffer, int __size) {
     return _R_result;
 }
 
-/* Start power trace capture. Should be called directly before any AES calcualtion takes place
+/* Start power trace capture. 
  *
- * returns -- 1 If trace was started, 0 if no trace was started (because one capture is already running)
+ * Should be called directly before any relevant AES calcualtion takes place
+ *
+ * returns -- 1 If trace was started
+ *            0 If no trace was started (because one capture is already running)
  *
 */
 static inline int trace_start() {
@@ -143,23 +147,30 @@ static inline int trace_start() {
   return _R_result;
 }
 
-/* Stop power trace capture. If the set trace name already exists we append to the end of the trace 
- * otherwise w new file will be created by the emulator with the trace name containing the captured power trace
+/* Stop power trace capture. 
  *
- * returns -- 1 If trace was stopped successfully, 0 if no trace was running 
+ * If the set trace name already exists we append to the end 
+ * of the trace otherwise a new file will be created by the emulator with the trace name
+ * containing the captured power trace
+ *
+ * returns -- 1 If trace was stopped successfully
+ *            0 if no trace was running 
  */
 static inline int trace_stop() {
   register int _R_result asm("a0");
-  _EMU_SYSCALL4(_R_result, _EMUNR_trace_stop);
+  _EMU_SYSCALL0(_R_result, _EMUNR_trace_stop);
   return _R_result;
 }
 
 
-/* Set the name for the file where the power trace will be captured. WARNING: Can be called during an already running capture. This will
- * result in parts of the already running capture being written to another file if it is called with a new name. Therefore the only safe 
- * use of this syscall is calling it outside of any running trace.
+/* Set the name for the file where the power trace will be captured. 
+ * WARNING: Can be called during an already running capture. This will result in parts
+ * of the already running capture being written to another file if it is called 
+ * with a new name. The only safe use of this syscall is calling it outside of
+ * any running trace.
  *
- * return -- -1 if the pointer to the buffer referenced invalid memory that would produce a fault, 0 if the trace name was set successfully.
+ * return -- -1 if the pointer to the buffer referenced invalid memory that would
+ *            produce a fault, 0 if the trace name was set successfully.
  * */ 
 static inline int trace_set_name(const void *__buffer, int __size) {
   register int _R_buffer asm("a0") = (int) __buffer;
@@ -170,12 +181,52 @@ static inline int trace_set_name(const void *__buffer, int __size) {
 }
 
 /*
- * Delays the run of the program by a random amount and will add a random amount of power draw depending on the length of the stall to the 
+ * Delay the trace for a random amount of cycles
+ *
+ * Delays the run of the program by a random amount of cycles and will add a 
+ * random amount of power draw depending on the length of the stall to the 
  * power trace value
+ *
+ * return -- Always 0, return value can be ignored. 
  * */
 static inline int trace_delay() {
   register int _R_result asm("a0");
   _EMU_SYSCALL6(_R_result, _EMNUR_trace_delay);
+  return _R_result;
+}
+
+/* Attach a key/value pair to the metadata of the power trace.
+ *
+ * The pair is stored by the emulator and written into the trace file by the
+ * next trace_stop() call. WARNING: Setting a key that was already set overwrites 
+ * its value. When trace_stop() extends an already existing trace file, the pending
+ * metadata is merged into that file's metadata, with these newly set keys
+ * taking precedence. The pending metadata is cleared after every trace_stop(),
+ * so each capture starts with an empty metadata set. May be called inside or
+ * outside of an active capture.
+ *
+ * key        -- Buffer holding the metadata key.
+ * key_size   -- Size of the key buffer, including the terminating null byte;
+ *               key_size - 1 bytes are read.
+ * value      -- Buffer holding the metadata value.
+ * value_size -- Size of the value buffer, including the terminating null byte;
+ *               value_size - 1 bytes are read.
+ *
+ * Both buffers are read fully before any metadata is changed, so a faulting
+ * access leaves the metadata untouched.
+ *
+ * returns -- 0 if the metadata pair was set successfully, -1 if either buffer
+ *            referenced invalid memory that would produce a fault.
+ */
+static inline int trace_set_metadata(const void *__key, int __key_size,
+                                     const void *__value, int __value_size) {
+  register int _R_key        asm("a0") = (int) __key;
+  register int _R_key_size   asm("a1") =       __key_size;
+  register int _R_value      asm("a2") = (int) __value;
+  register int _R_value_size asm("a3") =       __value_size;
+  register int _R_result     asm("a0");
+  _EMU_SYSCALL4(_R_result, _EMUNR_trace_set_metadata,
+                _R_key, _R_key_size, _R_value, _R_value_size);
   return _R_result;
 }
 

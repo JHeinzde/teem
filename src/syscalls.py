@@ -160,13 +160,39 @@ def sys_trace_set_name(self: SystemCall):
         self.set_return(Word(len(text_bytes)))
 
 
+@syscall(-8)
+def sys_trace_set_metadata(self: SystemCall):
+    key_addr, key_size = self.get_arg(0), self.get_arg(1).value
+    value_addr, value_size = self.get_arg(2), self.get_arg(3).value
+
+    key_bytes: list[int] = []
+    for i in range(min(key_size - 1, MAX_READWRITE)):
+        mem_result = self.cpu._mem.read_byte(key_addr + Word(i))
+        if mem_result.fault:
+            self.set_return(Word(-1))
+            return
+        key_bytes.append(mem_result.value.value)
+
+    value_bytes: list[int] = []
+    for i in range(min(value_size - 1, MAX_READWRITE)):
+        mem_result = self.cpu._mem.read_byte(value_addr + Word(i))
+        if mem_result.fault:
+            self.set_return(Word(-1))
+            return
+        value_bytes.append(mem_result.value.value)
+
+    POWER_TRACE.set_metadata(
+        bytes(key_bytes).decode("latin-1"),
+        bytes(value_bytes).decode("latin-1"),
+    )
+    self.set_return(Word(0))
+
+
 @syscall(-7)
 def sys_trace_delay(self: SystemCall):
     # We simulate stalling or a random operation with this syscalls implementation
-    # TODO: Fix bug where we have a huge peak at the beginning.
     for i in range(random.randint(0, 20)):
-        POWER_TRACE.append(-30.0 + 60.0 * random.random())
-        POWER_TRACE.flush_sample()
+        POWER_TRACE.insert_sample(-30.0 + 60.0 * random.random())
     self.set_return(Word(0))
 
 

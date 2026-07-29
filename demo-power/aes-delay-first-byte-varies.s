@@ -4396,82 +4396,98 @@ strlen:                                 # @strlen
 	.type	main,@function
 main:                                   # @main
 # %bb.0:
-	addi	sp, sp, -112
-	sw	ra, 108(sp)                     # 4-byte Folded Spill
-	sw	s0, 104(sp)                     # 4-byte Folded Spill
-	addi	s0, sp, 112
+	addi	sp, sp, -144
+	sw	ra, 140(sp)                     # 4-byte Folded Spill
+	sw	s0, 136(sp)                     # 4-byte Folded Spill
+	addi	s0, sp, 144
 	addi	a0, zero, 0
 	sw	a0, -12(s0)
-	sb	a0, -13(s0)
+	lui	a1, %hi(.L.str.1)
+	addi	a1, a1, %lo(.L.str.1)
+	sw	a1, -16(s0)
+	sb	a0, -17(s0)
 	jal	zero, .LBB61_1
 .LBB61_1:                               # =>This Inner Loop Header: Depth=1
-	lbu	a1, -13(s0)
+	lbu	a1, -17(s0)
 	addi	a0, zero, 254
 	blt	a0, a1, .LBB61_4
 	jal	zero, .LBB61_2
 .LBB61_2:                               #   in Loop: Header=BB61_1 Depth=1
+	lui	a0, %hi(.L.str.2)
+	addi	a0, a0, %lo(.L.str.2)
+	addi	a1, s0, -81
+	call	hex2bytes
 	lui	a0, %hi(.L.str)
 	addi	a0, a0, %lo(.L.str)
-	addi	a1, s0, -29
-	sw	a1, -100(s0)                    # 4-byte Folded Spill
+	addi	a1, s0, -33
+	sw	a1, -120(s0)                    # 4-byte Folded Spill
 	call	hex2bytes
-	lui	a0, %hi(.L.str.1)
-	addi	a0, a0, %lo(.L.str.1)
-	addi	a1, s0, -45
-	sw	a1, -104(s0)                    # 4-byte Folded Spill
+	lui	a0, %hi(.L.str.3)
+	addi	a0, a0, %lo(.L.str.3)
+	addi	a1, s0, -49
+	sw	a1, -128(s0)                    # 4-byte Folded Spill
 	call	hex2bytes
 	addi	a0, zero, 0
-	sw	a0, -68(s0)
-	sw	a0, -72(s0)
-	sw	a0, -76(s0)
-	lui	a1, 3
-	addi	a1, a1, -667
-	sw	a1, -80(s0)
-	lui	a1, 407063
-	addi	a1, a1, 628
-	sw	a1, -84(s0)
-	sh	a0, -88(s0)
+	sw	a0, -88(s0)
 	sw	a0, -92(s0)
 	sw	a0, -96(s0)
-	lbu	a0, -13(s0)
-	addi	a1, s0, -96
-	sw	a1, -112(s0)                    # 4-byte Folded Spill
+	lui	a1, 3
+	addi	a1, a1, -667
+	sw	a1, -100(s0)
+	lui	a1, 407063
+	addi	a1, a1, 628
+	sw	a1, -104(s0)
+	sh	a0, -108(s0)
+	sw	a0, -112(s0)
+	sw	a0, -116(s0)
+	lbu	a0, -17(s0)
+	addi	a1, s0, -116
+	sw	a1, -140(s0)                    # 4-byte Folded Spill
 	call	iota
-	lw	a1, -112(s0)                    # 4-byte Folded Reload
-	addi	a0, s0, -84
-	sw	a0, -108(s0)                    # 4-byte Folded Spill
+	lw	a1, -140(s0)                    # 4-byte Folded Reload
+	addi	a0, s0, -104
+	sw	a0, -136(s0)                    # 4-byte Folded Spill
 	addi	a2, zero, 20
 	call	strccat
-	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	lw	a0, -136(s0)                    # 4-byte Folded Reload
 	call	strlen
 	addi	a1, a0, 0
-	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	lw	a0, -136(s0)                    # 4-byte Folded Reload
 	call	write
                                         # kill: def $x11 killed $x10
-	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	lw	a0, -136(s0)                    # 4-byte Folded Reload
 	call	strlen
 	addi	a1, a0, 0
-	lw	a0, -108(s0)                    # 4-byte Folded Reload
+	lw	a0, -136(s0)                    # 4-byte Folded Reload
 	call	trace_set_name
-	lw	a1, -104(s0)                    # 4-byte Folded Reload
-                                        # kill: def $x12 killed $x10
-	lw	a0, -100(s0)                    # 4-byte Folded Reload
-	lbu	a2, -13(s0)
-	sb	a2, -45(s0)
-	addi	a2, zero, 16
-	addi	a3, s0, -61
+	lbu	a0, -17(s0)
+	sb	a0, -49(s0)
+	lw	a0, -16(s0)
+	sw	a0, -132(s0)                    # 4-byte Folded Spill
+	call	strlen
+	lw	a2, -128(s0)                    # 4-byte Folded Reload
+	addi	a1, a0, 0
+	lw	a0, -132(s0)                    # 4-byte Folded Reload
+	addi	a3, zero, 16
+	sw	a3, -124(s0)                    # 4-byte Folded Spill
+	call	trace_set_metadata
+	lw	a1, -128(s0)                    # 4-byte Folded Reload
+	lw	a2, -124(s0)                    # 4-byte Folded Reload
+                                        # kill: def $x13 killed $x10
+	lw	a0, -120(s0)                    # 4-byte Folded Reload
+	addi	a3, s0, -65
 	call	AES_ECB_encrypt
 	jal	zero, .LBB61_3
 .LBB61_3:                               #   in Loop: Header=BB61_1 Depth=1
-	lbu	a0, -13(s0)
+	lbu	a0, -17(s0)
 	addi	a0, a0, 1
-	sb	a0, -13(s0)
+	sb	a0, -17(s0)
 	jal	zero, .LBB61_1
 .LBB61_4:
 	addi	a0, zero, 0
-	lw	ra, 108(sp)                     # 4-byte Folded Reload
-	lw	s0, 104(sp)                     # 4-byte Folded Reload
-	addi	sp, sp, 112
+	lw	ra, 140(sp)                     # 4-byte Folded Reload
+	lw	s0, 136(sp)                     # 4-byte Folded Reload
+	addi	sp, sp, 144
 	jalr	zero, 0(ra)
 .Lfunc_end61:
 	.size	main, .Lfunc_end61-main
@@ -4701,6 +4717,43 @@ write:                                  # @write
 .Lfunc_end64:
 	.size	write, .Lfunc_end64-write
                                         # -- End function
+	.p2align	2                               # -- Begin function trace_set_metadata
+	.type	trace_set_metadata,@function
+trace_set_metadata:                     # @trace_set_metadata
+# %bb.0:
+	addi	sp, sp, -48
+	sw	ra, 44(sp)                      # 4-byte Folded Spill
+	sw	s0, 40(sp)                      # 4-byte Folded Spill
+	addi	s0, sp, 48
+	sw	a0, -12(s0)
+	sw	a1, -16(s0)
+	sw	a2, -20(s0)
+	sw	a3, -24(s0)
+	lw	a0, -12(s0)
+	sw	a0, -28(s0)
+	lw	a0, -16(s0)
+	sw	a0, -32(s0)
+	lw	a0, -20(s0)
+	sw	a0, -36(s0)
+	lw	a0, -24(s0)
+	sw	a0, -40(s0)
+	lw	a0, -28(s0)
+	lw	a1, -32(s0)
+	lw	a2, -36(s0)
+	lw	a3, -40(s0)
+	#APP
+	addi	a7, zero, -8
+	ecall
+	#NO_APP
+	sw	a0, -44(s0)
+	lw	a0, -44(s0)
+	lw	ra, 44(sp)                      # 4-byte Folded Reload
+	lw	s0, 40(sp)                      # 4-byte Folded Reload
+	addi	sp, sp, 48
+	jalr	zero, 0(ra)
+.Lfunc_end65:
+	.size	trace_set_metadata, .Lfunc_end65-trace_set_metadata
+                                        # -- End function
 	.p2align	2                               # -- Begin function AddRoundKey
 	.type	AddRoundKey,@function
 AddRoundKey:                            # @AddRoundKey
@@ -4723,8 +4776,8 @@ AddRoundKey:                            # @AddRoundKey
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end65:
-	.size	AddRoundKey, .Lfunc_end65-AddRoundKey
+.Lfunc_end66:
+	.size	AddRoundKey, .Lfunc_end66-AddRoundKey
                                         # -- End function
 	.p2align	2                               # -- Begin function SubBytes
 	.type	SubBytes,@function
@@ -4743,25 +4796,14 @@ SubBytes:                               # @SubBytes
 	sw	a0, -28(s0)
 	sw	a0, -32(s0)
 	sb	a0, -33(s0)
-	jal	zero, .LBB66_1
-.LBB66_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB67_1
+.LBB67_1:                               # =>This Inner Loop Header: Depth=1
 	lbu	a1, -33(s0)
 	addi	a0, zero, 15
-	blt	a0, a1, .LBB66_10
-	jal	zero, .LBB66_2
-.LBB66_2:                               #   in Loop: Header=BB66_1 Depth=1
-	lbu	a0, -9(s0)
-	bne	a0, zero, .LBB66_5
-	jal	zero, .LBB66_3
-.LBB66_3:                               #   in Loop: Header=BB66_1 Depth=1
-	lbu	a0, -33(s0)
-	bne	a0, zero, .LBB66_5
-	jal	zero, .LBB66_4
-.LBB66_4:                               #   in Loop: Header=BB66_1 Depth=1
+	blt	a0, a1, .LBB67_4
+	jal	zero, .LBB67_2
+.LBB67_2:                               #   in Loop: Header=BB67_1 Depth=1
 	call	trace_start
-	jal	zero, .LBB66_5
-.LBB66_5:                               #   in Loop: Header=BB66_1 Depth=1
-	call	trace_delay
 	lw	a0, -16(s0)
 	lbu	a1, -33(s0)
 	add	a1, a0, a1
@@ -4771,30 +4813,20 @@ SubBytes:                               # @SubBytes
 	add	a0, a0, a2
 	lbu	a0, 0(a0)
 	sb	a0, 0(a1)
-	lbu	a0, -9(s0)
-	bne	a0, zero, .LBB66_8
-	jal	zero, .LBB66_6
-.LBB66_6:                               #   in Loop: Header=BB66_1 Depth=1
-	lbu	a0, -33(s0)
-	bne	a0, zero, .LBB66_8
-	jal	zero, .LBB66_7
-.LBB66_7:                               #   in Loop: Header=BB66_1 Depth=1
 	call	trace_stop
-	jal	zero, .LBB66_8
-.LBB66_8:                               #   in Loop: Header=BB66_1 Depth=1
-	jal	zero, .LBB66_9
-.LBB66_9:                               #   in Loop: Header=BB66_1 Depth=1
+	jal	zero, .LBB67_3
+.LBB67_3:                               #   in Loop: Header=BB67_1 Depth=1
 	lbu	a0, -33(s0)
 	addi	a0, a0, 1
 	sb	a0, -33(s0)
-	jal	zero, .LBB66_1
-.LBB66_10:
+	jal	zero, .LBB67_1
+.LBB67_4:
 	lw	ra, 44(sp)                      # 4-byte Folded Reload
 	lw	s0, 40(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 48
 	jalr	zero, 0(ra)
-.Lfunc_end66:
-	.size	SubBytes, .Lfunc_end66-SubBytes
+.Lfunc_end67:
+	.size	SubBytes, .Lfunc_end67-SubBytes
                                         # -- End function
 	.p2align	2                               # -- Begin function ShiftRows
 	.type	ShiftRows,@function
@@ -4857,8 +4889,8 @@ ShiftRows:                              # @ShiftRows
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end67:
-	.size	ShiftRows, .Lfunc_end67-ShiftRows
+.Lfunc_end68:
+	.size	ShiftRows, .Lfunc_end68-ShiftRows
                                         # -- End function
 	.p2align	2                               # -- Begin function MixColumns
 	.type	MixColumns,@function
@@ -4871,13 +4903,13 @@ MixColumns:                             # @MixColumns
 	sw	a0, -12(s0)
 	addi	a0, zero, 0
 	sb	a0, -17(s0)
-	jal	zero, .LBB68_1
-.LBB68_1:                               # =>This Inner Loop Header: Depth=1
+	jal	zero, .LBB69_1
+.LBB69_1:                               # =>This Inner Loop Header: Depth=1
 	lbu	a1, -17(s0)
 	addi	a0, zero, 3
-	blt	a0, a1, .LBB68_4
-	jal	zero, .LBB68_2
-.LBB68_2:                               #   in Loop: Header=BB68_1 Depth=1
+	blt	a0, a1, .LBB69_4
+	jal	zero, .LBB69_2
+.LBB69_2:                               #   in Loop: Header=BB69_1 Depth=1
 	lw	a0, -12(s0)
 	lbu	a1, -17(s0)
 	slli	a1, a1, 2
@@ -4958,19 +4990,19 @@ MixColumns:                             # @MixColumns
 	lbu	a0, 3(a1)
 	xor	a0, a0, a2
 	sb	a0, 3(a1)
-	jal	zero, .LBB68_3
-.LBB68_3:                               #   in Loop: Header=BB68_1 Depth=1
+	jal	zero, .LBB69_3
+.LBB69_3:                               #   in Loop: Header=BB69_1 Depth=1
 	lbu	a0, -17(s0)
 	addi	a0, a0, 1
 	sb	a0, -17(s0)
-	jal	zero, .LBB68_1
-.LBB68_4:
+	jal	zero, .LBB69_1
+.LBB69_4:
 	lw	ra, 28(sp)                      # 4-byte Folded Reload
 	lw	s0, 24(sp)                      # 4-byte Folded Reload
 	addi	sp, sp, 32
 	jalr	zero, 0(ra)
-.Lfunc_end68:
-	.size	MixColumns, .Lfunc_end68-MixColumns
+.Lfunc_end69:
+	.size	MixColumns, .Lfunc_end69-MixColumns
                                         # -- End function
 	.p2align	2                               # -- Begin function trace_start
 	.type	trace_start,@function
@@ -4990,29 +5022,8 @@ trace_start:                            # @trace_start
 	lw	s0, 8(sp)                       # 4-byte Folded Reload
 	addi	sp, sp, 16
 	jalr	zero, 0(ra)
-.Lfunc_end69:
-	.size	trace_start, .Lfunc_end69-trace_start
-                                        # -- End function
-	.p2align	2                               # -- Begin function trace_delay
-	.type	trace_delay,@function
-trace_delay:                            # @trace_delay
-# %bb.0:
-	addi	sp, sp, -16
-	sw	ra, 12(sp)                      # 4-byte Folded Spill
-	sw	s0, 8(sp)                       # 4-byte Folded Spill
-	addi	s0, sp, 16
-	#APP
-	addi	a7, zero, -7
-	ecall
-	#NO_APP
-	sw	a0, -12(s0)
-	lw	a0, -12(s0)
-	lw	ra, 12(sp)                      # 4-byte Folded Reload
-	lw	s0, 8(sp)                       # 4-byte Folded Reload
-	addi	sp, sp, 16
-	jalr	zero, 0(ra)
 .Lfunc_end70:
-	.size	trace_delay, .Lfunc_end70-trace_delay
+	.size	trace_start, .Lfunc_end70-trace_start
                                         # -- End function
 	.p2align	2                               # -- Begin function trace_stop
 	.type	trace_stop,@function
@@ -5906,8 +5917,18 @@ getDelta:                               # @getDelta
 
 	.type	.L.str.1,@object                # @.str.1
 .L.str.1:
-	.asciz	"00ffffffffffffffffffffffffffffff"
-	.size	.L.str.1, 33
+	.asciz	"input"
+	.size	.L.str.1, 6
+
+	.type	.L.str.2,@object                # @.str.2
+.L.str.2:
+	.asciz	"ffffffffffffffffffffffffffffffff"
+	.size	.L.str.2, 33
+
+	.type	.L.str.3,@object                # @.str.3
+.L.str.3:
+	.asciz	"0000ffffffffffffffffffffffffffff"
+	.size	.L.str.3, 33
 
 	.type	.L__const.main.trace_name,@object # @__const.main.trace_name
 	.section	.rodata,"a",@progbits
@@ -5931,7 +5952,7 @@ rsbox:
 	.asciz	"0123456789"
 	.size	.L__const.iota.abc, 11
 
-	.ident	"clang version 22.1.5"
+	.ident	"clang version 22.1.8"
 	.section	".note.GNU-stack","",@progbits
 	.addrsig
 	.addrsig_sym AES_ECB_encrypt
@@ -5972,12 +5993,12 @@ rsbox:
 	.addrsig_sym iota
 	.addrsig_sym strccat
 	.addrsig_sym write
+	.addrsig_sym trace_set_metadata
 	.addrsig_sym AddRoundKey
 	.addrsig_sym SubBytes
 	.addrsig_sym ShiftRows
 	.addrsig_sym MixColumns
 	.addrsig_sym trace_start
-	.addrsig_sym trace_delay
 	.addrsig_sym trace_stop
 	.addrsig_sym xtime
 	.addrsig_sym InvMixColumns

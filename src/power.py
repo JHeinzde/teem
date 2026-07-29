@@ -1,5 +1,7 @@
+import json
 import os
-from dataclasses import dataclass 
+import warnings
+from dataclasses import dataclass, asdict
 from functools import wraps
 from typing import List, Tuple, Callable, Dict
 from pathlib import Path
@@ -103,10 +105,14 @@ def power_draw(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         result = func(self, *args, **kwargs)
-        # If a slot is in the executing stage we add its power value to the power trace.
-        if self.stage == "executing":
-            pt = POWER_TRACE
-            pt.append(POWER_VALUES[self.instr_ty.name])
+        # A slot draws its opcode power on every cycle its functional unit is busy,
+        # including the cycle it produces its result. A slot that is only waiting in the
+        # reservation station draws the (data-independent) stall power instead.
+        pt = POWER_TRACE
+        if self.active:
+            pt.append(POWER_VALUES[self.instr_ty.name], source="instruction")
+        else:
+            pt.append(pt.stall_power, source="stall")
         return result
 
     return wrapper
@@ -115,10 +121,11 @@ def power_draw(func):
 def cycle_power(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        result = func(self)
-        if result.fault_info is not None:
-            # Currently we only care about cycles that did not produce a fault
-            return result
+        result = func(self, *args, **kwargs)
+        # One sample per tick, faulting or not. Skipping faulting cycles would
+        # both shorten the trace by an input-dependent amount (misalignment
+        # that is an emulator artefact rather than a countermeasure) and dump
+        # the skipped cycle's activity onto the following sample.
         POWER_TRACE.flush_sample()
         return result
 
@@ -127,14 +134,38 @@ def cycle_power(func):
 
 @dataclass
 class TraceData:
+    """
+    TraceData is a dataclass describing a power trace captured by this emulator. 
+    It contains 3 properties:
+        name     -- Name of the power trace as set by the trace_name syscall
+        trace    -- List containing the power measured per single cycle of the CPU
+        metadata -- A dict containing string keys and values set by the
+                    trace_set_metadta syscall in the emulator. Can be used to
+                    record the input values to an algorithm or other relevant
+                    metadata for use in postprocessing of the power traces.
+    """
     name: str
-    content: List[float]
+    trace: List[float]
     metadata: Dict[str, str]
+
+
+def _trace_to_json(data: TraceData, path: os.PathLike):
+    """Serialize a TraceData object to a JSON file."""
+    with open(path, "w") as f:
+        json.dump(asdict(data), f)
+
+
+def _trace_from_json(path: os.PathLike) -> TraceData:
+    """Deserialize a TraceData object from a JSON file."""
+    with open(path) as f:
+        return TraceData(**json.load(f))
 
 
 class PowerTrace(object):
     """
-    Represents a power trace of the cpu. This is an append only data structure
+    Represents a power trace of the cpu. This is an append only data structure.
+    Should be considered as an internal API for the emulator and is not intended
+    for actual use
     """
 
     _instance = None
@@ -146,13 +177,46 @@ class PowerTrace(object):
             cls.sample = []
             cls.capture = False
             cls.name = "power-trace"
+            cls.metadata = {}
             cls.random = np.random.default_rng()
             cls.random_noise = False
+            cls.cache_refill_leakage = True
+            cls.stall_power = 0.0
         return cls._instance
 
-    def append(self, trace_value: float):
-        if self.capture:
-            self.sample.append(trace_value)
+    def append(self, trace_value: float, source: str = "instruction"):
+        """
+        Record one power contribution for the current cycle.
+
+        source -- which part of the emulator produced this value. Used to let
+                  the configuration suppress individual leakage sources, and to
+                  distinguish the opcode power of a working slot ("instruction")
+                  from that of a blocked one ("stall"). The only source that is
+                  currently gated is "cache_refill", the per-word Hamming
+                  distance emitted while a cache line is refilled (see
+                  src/cache.py). Suppressing it does not change cycle counts or
+                  trace length, only sample values.
+        """
+        if not self.capture:
+            return
+        if source == "cache_refill" and not self.cache_refill_leakage:
+            return
+        self.sample.append(trace_value)
+
+    def insert_sample(self, trace_value: float):
+        """
+        Append a finished sample that does not correspond to a CPU cycle.
+
+        For countermeasures that splice extra samples into the trace while a
+        cycle is still in flight: system calls run inside CPU.tick(), so the
+        activity of the cycle carrying the ecall is already in the accumulator
+        by then. Going through append() + flush_sample() would commit that
+        activity as part of the spliced sample; insert_sample leaves it pending
+        for the flush at the end of the tick. See sys_trace_delay.
+        """
+        if not self.capture:
+            return
+        self.trace.append(trace_value)
 
     def flush_sample(self):
         if not self.capture:
@@ -168,6 +232,13 @@ class PowerTrace(object):
     def set_trace_name(self, name: str):
         self.name = name
 
+    def set_metadata(self, key: str, value: str):
+        """
+        Add or overwrite a key/value pair in the metadata that will be attached
+        to the TraceData written by the next stop_capture() call.
+        """
+        self.metadata[key] = value
+
     def start_capture(self):
         if not self.capture:
             self.capture = True
@@ -177,43 +248,49 @@ class PowerTrace(object):
 
     def stop_capture(self):
         """
-        Stops a the capture of a power trace. It will write all resulting traces into a ./traces directory.
-        If the set trace name already exists we will extend the power trace already contained in that file.
-        trace_name: The name for the file of the power trace
+        Stops the capture of a power trace. It will write the resulting trace into
+        a ./traces directory as a JSON-serialized TraceData object.
+        If the set trace name already exists we will extend the power trace already
+        contained in that file.
         return: 0 if no capture was running 1 if capture was stopped successfully
         """
         if not self.capture:
             return 0
 
-        export = np.asarray(self.trace)
+        export = np.asarray(self.trace, dtype=float)
 
         if self.random_noise:
             noise = self.random.standard_normal(len(export))
-            export += noise
+            export = export + noise
 
         if not os.path.exists("traces/"):
             os.mkdir("./traces")
 
-        trace_path = f"./traces/{self.name}"
+        trace_path = f"./traces/{self.name}.json"
+        samples = export.tolist()
 
         if os.path.exists(trace_path):
-            with open(trace_path) as f:
-                # TODO: see if there is a more simple way to extend the array in a file
-                arr = np.load(f)
-                arr.extend(export)
-                f.seek(0)
-                np.save(arr)
+            trace_data = _trace_from_json(trace_path)
+            trace_data.trace.extend(samples)
+            trace_data.metadata.update(self.metadata)
         else:
-            with open(trace_path, "wb") as f:
-                np.save(f, export)
+            trace_data = TraceData(
+                name=self.name, trace=samples, metadata=dict(self.metadata)
+            )
+
+        _trace_to_json(trace_data, trace_path)
 
         self.trace = []
+        self.metadata = {}
         self.capture = False
         return 1
 
 
 def set_config(conf):
-    PowerTrace().random_noise = conf["PowerTraces"]["random_noise"]
+    pt = PowerTrace()
+    pt.random_noise = conf["PowerTraces"]["random_noise"]
+    pt.cache_refill_leakage = conf["PowerTraces"].get("cache_refill_leakage", True)
+    pt.stall_power = float(conf["PowerTraces"].get("stall_power", 0.0))
 
 
 POWER_TRACE = PowerTrace()
@@ -262,13 +339,16 @@ def aes_internal(input_byte, key_byte):
 
 class CPAAttack:
 
-    def __init__(self, trace_data: npt.ArrayLike, shift: List = None):
+    def __init__(self, trace_data: npt.ArrayLike, leakage_model: Callable = None):
         """
-        Constructs a CPAAttack instance. 
-        trace_data: A an array which per trace contains a tuple with (input byte array, trace) 
+        Constructs a CPAAttack instance.
+        trace_data: An array which per trace contains a tuple with (input byte array, trace)
+        leakage_model: A callable that takes (input_byte, key_guess) and returns an
+                       intermediate value in the range 0-255. Its Hamming weight is
+                       correlated against the power traces. Defaults to aes_internal.
         """
         self.trace_data = trace_data
-        self.shift = None
+        self.leakage_model = leakage_model if leakage_model is not None else aes_internal
 
     def attack(self) -> npt.ArrayLike:
         """
@@ -286,13 +366,36 @@ class CPAAttack:
         t_bar = mean(trace_array)
         o_t = std_dev(trace_array, t_bar)
 
+        # A sample point with the same value in every trace has a zero standard
+        # deviation and the correlation coefficient is undefined there. Such a
+        # point carries no information about the key, so it scores 0. Dividing
+        # anyway would yield NaN, and since NaN loses every comparison, a single
+        # NaN would silently become the reported score of every key guess.
+        # Deterministic cycles produce these points: the ecall cycle that starts
+        # the capture is identical in every trace.
+        usable = o_t > 0
+        if not usable.all():
+            warnings.warn(
+                f"{int((~usable).sum())} of {usable.size} sample points are "
+                "constant across all traces and cannot be correlated; "
+                "they are scored 0.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
         for kguess in range(0, 256):
-            hws = np.array([[HW[textin ^ kguess ^ aes_internal(textin, kguess)] for textin in textin_array]]).transpose()
+            hws = np.array([[HW[self.leakage_model(textin, kguess)] for textin in textin_array]]).transpose()
             hws_bar = mean(hws)
             o_hws = std_dev(hws, hws_bar)
+            if np.all(o_hws == 0):
+                # The leakage model maps every plaintext to the same Hamming
+                # weight under this guess: there is no hypothesis to correlate.
+                maxcpa[kguess] = 0.0
+                continue
             correlation = cov(trace_array, t_bar, hws, hws_bar)
-            cpaoutput = correlation/(o_t*o_hws)
-            maxcpa[kguess] = max(abs(cpaoutput))
+            cpaoutput = np.zeros_like(correlation, dtype=float)
+            np.divide(correlation, o_t * o_hws, out=cpaoutput, where=usable)
+            maxcpa[kguess] = np.max(np.abs(cpaoutput))
 
         return maxcpa
 
@@ -349,19 +452,146 @@ class TraceLoader:
         self.path = Path(path)
 
     def load_traces(self) -> npt.ArrayLike:
-        trace_files = self.path.glob("trace-*")
+        trace_files = self.path.glob("*.json")
         max_trace_length = 0
         traces = []
         for trace_file in trace_files:
-            trace_data = np.load(trace_file)
+            trace_data = np.asarray(_trace_from_json(trace_file).trace)
             max_trace_length = max(max_trace_length, len(trace_data))
             traces.append(trace_data)
 
         final_traces = []
         for trace in traces:
-            extension = np.zero(max_trace_length - len(trace))
-            final_traces.append(np.concatenate(trace, extension))
+            extension = np.zeros(max_trace_length - len(trace))
+            final_traces.append(np.concatenate([trace, extension]))
         return np.asarray(final_traces)
+
+    def load_trace_data(self) -> List[TraceData]:
+        """Load every trace in the directory as a TraceData object."""
+        return [_trace_from_json(trace_file)
+                for trace_file in self.path.glob("*.json")]
+
+
+class TraceViewer:
+    """
+    Renders power traces with matplotlib.
+
+    Bundles the recurring plotting patterns used to inspect power traces:
+    overlaying many traces, comparing per-group mean traces, and showing a
+    single trace. Every method builds a figure, calls plt.show() and returns
+    the (figure, axes) pair so callers can customise the plot further.
+
+    matplotlib is imported lazily in the constructor so that importing this
+    module (and with it the emulator core, via syscalls.py) does not require
+    matplotlib to be installed.
+    """
+
+    def __init__(self, figsize=(20, 10), grid_alpha=0.3):
+        import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
+        from matplotlib.lines import Line2D
+
+        self._plt = plt
+        self._cm = cm
+        self._Line2D = Line2D
+        self.figsize = figsize
+        self.grid_alpha = grid_alpha
+
+    def _new_axes(self, title, xlabel, ylabel):
+        "Create a figure/axes pair with the shared title, labels and grid."
+        fig, ax = self._plt.subplots(figsize=self.figsize)
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.grid(True, alpha=self.grid_alpha)
+        return fig, ax
+
+    def plot_overlay(self, traces, title="Power Traces", *,
+                     subtract_mean=False, baseline=False,
+                     xlabel="Trace Clock Cycle", ylabel="Power Value",
+                     legend_label="traces"):
+        """
+        Overlay many power traces on a single axis with a viridis colour
+        gradient.
+
+        traces        -- Iterable of 1D power traces. They are truncated to
+                          their common minimum length before plotting.
+        subtract_mean -- If True, plot each trace minus the mean of all traces.
+        baseline      -- If True, draw a dashed horizontal line at y=0.
+        return        -- The (figure, axes) pair.
+        """
+        traces = [np.asarray(t, dtype=float) for t in traces]
+        min_len = min(len(t) for t in traces)
+        traces = [t[:min_len] for t in traces]
+
+        if subtract_mean:
+            mean_trace = np.mean(traces, axis=0)
+            traces = [t - mean_trace for t in traces]
+
+        fig, ax = self._new_axes(title, xlabel, ylabel)
+        colors = self._cm.viridis(np.linspace(0, 1, len(traces)))
+        for color, trace in zip(colors, traces):
+            ax.plot(trace, color=color, alpha=0.3, linewidth=0.6)
+
+        if baseline:
+            ax.axhline(0, color="black", linewidth=1.2, linestyle="--",
+                       label="mean (zero)")
+
+        trace_proxy = self._Line2D([0], [0], color=self._cm.viridis(0.5),
+                                   alpha=0.6, linewidth=1,
+                                   label=f"{legend_label} (n={len(traces)})")
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles=[trace_proxy] + handles,
+                  labels=[trace_proxy.get_label()] + labels)
+
+        fig.tight_layout()
+        self._plt.show()
+        return fig, ax
+
+    def plot_group_means(self, groups, title="Mean Traces by Group", *,
+                         label_prefix="group",
+                         xlabel="Trace Clock Cycle", ylabel="Power Value"):
+        """
+        Plot the mean trace of each group, one thick line per group.
+
+        groups       -- Mapping of group key -> sequence of traces. Empty
+                         groups are skipped; each group's members are truncated
+                         to their common minimum length before averaging.
+        label_prefix -- Prefix for each line's legend label, formatted as
+                         "{label_prefix}={key} (n={count})".
+        return       -- The (figure, axes) pair.
+        """
+        populated = {key: members for key, members in groups.items()
+                     if len(members) > 0}
+
+        fig, ax = self._new_axes(title, xlabel, ylabel)
+        colors = self._cm.tab10(np.linspace(0, 0.9, max(len(populated), 1)))
+        for color, key in zip(colors, sorted(populated)):
+            members = populated[key]
+            min_len = min(len(t) for t in members)
+            mean_trace = np.mean([np.asarray(t)[:min_len] for t in members],
+                                 axis=0)
+            ax.plot(mean_trace, color=color, linewidth=2.0,
+                    label=f"{label_prefix}={key} (n={len(members)})")
+        ax.legend(loc="best")
+
+        fig.tight_layout()
+        self._plt.show()
+        return fig, ax
+
+    def plot_trace(self, trace, title="Power Trace", *,
+                   xlabel="Trace Clock Cycle", ylabel="Power Value"):
+        """
+        Plot a single power trace.
+
+        return -- The (figure, axes) pair.
+        """
+        fig, ax = self._new_axes(title, xlabel, ylabel)
+        ax.plot(np.asarray(trace), alpha=0.3, linewidth=0.6)
+
+        fig.tight_layout()
+        self._plt.show()
+        return fig, ax
 
 
 

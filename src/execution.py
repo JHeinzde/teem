@@ -122,6 +122,10 @@ class _Slot:
     stage_result: object
     # Source operands
     operands: list[_WordOrSlot]
+    # Whether this slot's functional unit did work in the current cycle, as opposed to
+    # waiting on an operand, a hazard, or a preceding instruction. Set by `_tick_execute`
+    # once it is past its blocked-checks; read by the `power_draw` decorator.
+    active: bool
 
     def __init__(self, args: _ArgsSlot):
         self.instr = args.instr
@@ -129,6 +133,7 @@ class _Slot:
         self.stage = "executing"
         self.stage_result = None
         self.operands = args.source_operands
+        self.active = False
 
     def power(self) -> float:
         return self.instr.ty.power_draw()
@@ -156,6 +161,7 @@ class _Slot:
         """Continue executing this slot, return its result if it finished executing."""
         assert self.stage == "executing"
 
+        self.active = False
         r = self._tick_execute()
         if r is not None:
             self.stage = "executed"
@@ -334,6 +340,9 @@ class _SlotMem(_SlotFaulting):
                 result.value = result.value.zero_extend()
             self.result = result
 
+        # The memory subsystem is working on our behalf from here on
+        self.active = True
+
         # Wait until we want to return the value
         self.result.cycles_value -= 1
         if self.result.cycles_value > 0:
@@ -394,6 +403,8 @@ class _SlotCalc(_Slot):
         for op in self.operands:
             if not isinstance(op, Word):
                 return None
+
+        self.active = True
 
         self.cycles_remaining -= 1
         if self.cycles_remaining > 0:
@@ -513,6 +524,8 @@ class _SlotFlushAll(_Slot):
         self.memory = args.exe._memory
 
     def _tick_execute(self) -> Optional[Word]:
+        self.active = True
+
         # Flush the whole cache
         self.memory.flush_all()
 
@@ -551,6 +564,8 @@ class _SlotBranch(_SlotFaulting):
         for op in self.operands:
             if not isinstance(op, Word):
                 return None
+
+        self.active = True
 
         # Wait the specified amount of cycles
         self.cycles_remaining -= 1
@@ -606,6 +621,8 @@ class _SlotJump(_SlotFaulting):
             if not isinstance(self.operands[0], Word):
                 return None
 
+        self.active = True
+
         # Simulate execution latency
         self.cycles_remaining -= 1
         if self.cycles_remaining > 0:
@@ -659,6 +676,8 @@ class _SlotCyclecount(_Slot):
         self.exe = args.exe
 
     def _tick_execute(self) -> Optional[Word]:
+        self.active = True
+
         # Return the current value of the cycle counter immediately
         return Word(self.exe._cyclecount)
 
@@ -697,6 +716,8 @@ class _SlotSerializing(_SlotFaulting):
         # Wait for preceding instructions to retire
         if self.preceding:
             return None
+
+        self.active = True
 
         # Return dummy value
         return Word(0)

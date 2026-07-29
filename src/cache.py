@@ -104,7 +104,7 @@ class CacheLine:
         if before is None:
             before = 0
         # Writing data too a cache should definitly have consequences for the power trace
-        POWER_TRACE.append((before ^ data).bit_count())
+        POWER_TRACE.append((before ^ data).bit_count(), source="cache_refill")
         self.data[offset] = data
 
     def flush(self) -> None:

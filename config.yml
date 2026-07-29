@@ -49,3 +49,5 @@ Rollback:
 
 PowerTraces:
     random_noise: False
+    cache_refill_leakage: True   # realistic; False gives clean single-source leak points
+    stall_power: 0.0             # per-cycle draw of a slot blocked in the reservation station
