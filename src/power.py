@@ -61,6 +61,9 @@ POWER_VALUES = {
     "fence.i": 10.0,
     "ecall": 1.0,
     "ebreak": 1.0,
+    # `nop` is not an instruction kind the emulator ever executes; the entry is
+    # the idle draw of one delay cycle spliced by sys_trace_delay.
+    "nop": 1.0,
     "blts": 3.0,
     "bles": 3.0,
     "bgts": 3.0,
@@ -100,14 +103,36 @@ POWER_VALUES = {
     "th.dcache.ciall": 1.0,
 }
 
+# Per-source scaling of the leakage terms. The sources are on incommensurable
+# scales -- an opcode constant is 0.8-10.0, a load write-back 0-32, a byte store
+# 0-8, and a cache-line refill contributes 0-8 once per byte of the line -- so
+# a fixed mix leaves the term being attacked buried under the loudest one.
+# Weights make that mix, and with it the SNR, a configurable quantity. 0.0
+# disables a source entirely. Keys are the `source` argument of
+# PowerTrace.append; see set_config for validation.
+DEFAULT_LEAKAGE_WEIGHTS = {
+    "instruction":   1.0,
+    "stall":         1.0,
+    "register_load": 1.0,
+    "memory_store":  1.0,
+    "cache_refill":  1.0,
+}
+
+_POWER_CONFIG_KEYS = frozenset({"stall_power", "weights", "noise", "seed"})
+_NOISE_CONFIG_KEYS = frozenset({"sigma"})
+
+_REMOVED_CONFIG_KEYS = {
+    "random_noise":
+        "noise.sigma (1.0 reproduces random_noise: True)",
+    "cache_refill_leakage":
+        "weights.cache_refill (0.0 reproduces cache_refill_leakage: False)",
+}
+
 
 def power_draw(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         result = func(self, *args, **kwargs)
-        # A slot draws its opcode power on every cycle its functional unit is busy,
-        # including the cycle it produces its result. A slot that is only waiting in the
-        # reservation station draws the (data-independent) stall power instead.
         pt = POWER_TRACE
         if self.active:
             pt.append(POWER_VALUES[self.instr_ty.name], source="instruction")
@@ -122,10 +147,6 @@ def cycle_power(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         result = func(self, *args, **kwargs)
-        # One sample per tick, faulting or not. Skipping faulting cycles would
-        # both shorten the trace by an input-dependent amount (misalignment
-        # that is an emulator artefact rather than a countermeasure) and dump
-        # the skipped cycle's activity onto the following sample.
         POWER_TRACE.flush_sample()
         return result
 
@@ -178,32 +199,61 @@ class PowerTrace(object):
             cls.capture = False
             cls.name = "power-trace"
             cls.metadata = {}
-            cls.random = np.random.default_rng()
-            cls.random_noise = False
-            cls.cache_refill_leakage = True
+            cls.noise_sigma = 0.0
+            cls._instance.set_seed(None)
             cls.stall_power = 0.0
+            cls.leakage_weights = dict(DEFAULT_LEAKAGE_WEIGHTS)
         return cls._instance
+
+    def set_seed(self, seed):
+        """
+        Seed the measurement noise and the random-delay countermeasure.
+
+        Two independent substreams from one seed rather than one shared
+        generator: enabling the delay countermeasure then does not shift the
+        noise draws, so two runs that differ only in the countermeasure stay
+        otherwise comparable. seed=None draws from OS entropy, i.e. an
+        irreproducible run.
+
+        Called once per set_config, not once per capture: a program that
+        captures many traces in one run must get fresh noise for each of them,
+        not the same vector repeated.
+        """
+        self.seed = seed
+        noise_seq, delay_seq = np.random.SeedSequence(seed).spawn(2)
+        self.random = np.random.default_rng(noise_seq)
+        self.delay_random = np.random.default_rng(delay_seq)
+
+    def _apply_noise(self, samples: npt.NDArray) -> npt.NDArray:
+        """
+        Add i.i.d. Gaussian measurement noise of the configured sigma.
+
+        sigma is in the same (arbitrary) units as the trace itself, so it is
+        read against the amplitude of the leakage terms: the algorithmic leak of
+        the AES demo has a standard deviation of about 1.4.
+        """
+        if self.noise_sigma <= 0.0:
+            return samples
+        return samples + self.random.normal(0.0, self.noise_sigma, len(samples))
 
     def append(self, trace_value: float, source: str = "instruction"):
         """
         Record one power contribution for the current cycle.
 
-        source -- which part of the emulator produced this value. Used to let
-                  the configuration suppress individual leakage sources, and to
-                  distinguish the opcode power of a working slot ("instruction")
-                  from that of a blocked one ("stall"). The only source that is
-                  currently gated is "cache_refill", the per-word Hamming
-                  distance emitted while a cache line is refilled (see
-                  src/cache.py). Suppressing it does not change cycle counts or
-                  trace length, only sample values.
+        source -- which part of the emulator produced this value. The
+                  configured weight of that source scales it (see
+                  DEFAULT_LEAKAGE_WEIGHTS); a weight of 0.0 drops the
+                  contribution entirely. Suppressing a source does not change
+                  cycle counts or trace length, only sample values.
         """
         if not self.capture:
             return
-        if source == "cache_refill" and not self.cache_refill_leakage:
+        weight = self.leakage_weights.get(source, 1.0)
+        if weight == 0.0:
             return
-        self.sample.append(trace_value)
+        self.sample.append(trace_value * weight)
 
-    def insert_sample(self, trace_value: float):
+    def insert_sample(self, trace_value: float, source: str = "instruction"):
         """
         Append a finished sample that does not correspond to a CPU cycle.
 
@@ -213,10 +263,15 @@ class PowerTrace(object):
         by then. Going through append() + flush_sample() would commit that
         activity as part of the spliced sample; insert_sample leaves it pending
         for the flush at the end of the tick. See sys_trace_delay.
+
+        source scales the value exactly as in append(), but a weight of 0.0
+        still appends the (now zero) sample: a spliced sample is a position in
+        the trace, and dropping it would turn an amplitude knob into a timing
+        one.
         """
         if not self.capture:
             return
-        self.trace.append(trace_value)
+        self.trace.append(trace_value * self.leakage_weights.get(source, 1.0))
 
     def flush_sample(self):
         if not self.capture:
@@ -259,9 +314,7 @@ class PowerTrace(object):
 
         export = np.asarray(self.trace, dtype=float)
 
-        if self.random_noise:
-            noise = self.random.standard_normal(len(export))
-            export = export + noise
+        export = self._apply_noise(export)
 
         if not os.path.exists("traces/"):
             os.mkdir("./traces")
@@ -287,10 +340,73 @@ class PowerTrace(object):
 
 
 def set_config(conf):
+    """
+    Apply the PowerTraces section of the config to the PowerTrace singleton.
+
+    Every field is reset, including the ones falling back to a default: the
+    singleton survives CPU construction, so skipping an absent key would leave
+    the previous run's value in place.
+    """
     pt = PowerTrace()
-    pt.random_noise = conf["PowerTraces"]["random_noise"]
-    pt.cache_refill_leakage = conf["PowerTraces"].get("cache_refill_leakage", True)
-    pt.stall_power = float(conf["PowerTraces"].get("stall_power", 0.0))
+    section = conf["PowerTraces"]
+
+    for key in section:
+        if key in _REMOVED_CONFIG_KEYS:
+            raise ValueError(f"PowerTraces.{key} was removed; "
+                             f"use {_REMOVED_CONFIG_KEYS[key]}")
+        if key not in _POWER_CONFIG_KEYS:
+            raise ValueError(f"unknown PowerTraces key: {key} "
+                             f"(known keys are {sorted(_POWER_CONFIG_KEYS)})")
+
+    weights_section = section.get("weights")
+    if weights_section is None:
+        weights_section = {}
+    elif not isinstance(weights_section, dict):
+        raise ValueError(
+            f"PowerTraces.weights must be a mapping of source -> weight, "
+            f"got {weights_section!r}")
+
+    weights = dict(DEFAULT_LEAKAGE_WEIGHTS)
+    for source, value in weights_section.items():
+        if source not in DEFAULT_LEAKAGE_WEIGHTS:
+            raise ValueError(f"unknown leakage source in PowerTraces.weights: "
+                             f"{source} (known sources are "
+                             f"{sorted(DEFAULT_LEAKAGE_WEIGHTS)})")
+        weight = float(value)
+        if weight < 0.0:
+            raise ValueError(f"PowerTraces.weights.{source} must not be "
+                             f"negative: {weight}")
+        weights[source] = weight
+
+    noise_section = section.get("noise")
+    if noise_section is None:
+        noise_section = {}
+    elif not isinstance(noise_section, dict):
+        raise ValueError(
+            f"PowerTraces.noise must be a mapping, got {noise_section!r}")
+
+    for key in noise_section:
+        if key not in _NOISE_CONFIG_KEYS:
+            raise ValueError(f"unknown PowerTraces.noise key: {key} "
+                             f"(known keys are {sorted(_NOISE_CONFIG_KEYS)})")
+    sigma = float(noise_section.get("sigma", 0.0))
+    if sigma < 0.0:
+        raise ValueError(f"PowerTraces.noise.sigma must not be negative: {sigma}")
+
+    stall_power = float(section.get("stall_power", 0.0))
+    if stall_power < 0.0:
+        raise ValueError(
+            f"PowerTraces.stall_power must not be negative: {stall_power}")
+
+    seed = section.get("seed", None)
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
+        raise ValueError(
+            f"PowerTraces.seed must be an int or null, got {seed!r}")
+
+    pt.leakage_weights = weights
+    pt.noise_sigma = sigma
+    pt.stall_power = stall_power
+    pt.set_seed(seed)
 
 
 POWER_TRACE = PowerTrace()
@@ -374,24 +490,24 @@ class CPAAttack:
         # Deterministic cycles produce these points: the ecall cycle that starts
         # the capture is identical in every trace.
         usable = o_t > 0
-        if not usable.all():
-            warnings.warn(
-                f"{int((~usable).sum())} of {usable.size} sample points are "
-                "constant across all traces and cannot be correlated; "
-                "they are scored 0.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
+        #if not usable.all():
+        #  warnings.warn(
+                #        f"{int((~usable).sum())} of {usable.size} sample points are "
+                #"constant across all traces and cannot be correlated; "
+                #"they are scored 0.",
+                #RuntimeWarning,
+                #stacklevel=2,
+                #)
 
         for kguess in range(0, 256):
             hws = np.array([[HW[self.leakage_model(textin, kguess)] for textin in textin_array]]).transpose()
             hws_bar = mean(hws)
             o_hws = std_dev(hws, hws_bar)
-            if np.all(o_hws == 0):
+            #if np.all(o_hws == 0):
                 # The leakage model maps every plaintext to the same Hamming
                 # weight under this guess: there is no hypothesis to correlate.
-                maxcpa[kguess] = 0.0
-                continue
+            #    maxcpa[kguess] = 0.0
+            #    continue
             correlation = cov(trace_array, t_bar, hws, hws_bar)
             cpaoutput = np.zeros_like(correlation, dtype=float)
             np.divide(correlation, o_t * o_hws, out=cpaoutput, where=usable)

@@ -169,15 +169,28 @@ static inline int trace_set_name(const void *__buffer, int __size) {
   return _R_result;
 }
 
-/*
- * Delays the run of the program by a random amount and will add a random amount of power draw depending on the length of the stall to the 
- * power trace value
- * */
-static inline int trace_delay() {
+/* Random-delay countermeasure: splice a random number of idle cycles, each
+ * drawing the constant power of a nop, into the power trace.
+ *
+ * The number of cycles is drawn uniformly from 0 up to and including
+ * max_cycles. The argument is optional -- trace_delay() leaves it to the
+ * emulator's default of 20, trace_delay(50) widens the delay window.
+ *
+ * max_cycles -- Upper bound of the delay, inclusive. 0 or negative selects the
+ *               emulator default; oversized values are clamped.
+ * returns    -- The bound actually used, i.e. after defaulting and clamping.
+ */
+static inline int trace_delay_max(int __max_cycles) {
+  register int _R_max    asm("a0") = __max_cycles;
   register int _R_result asm("a0");
-  _EMU_SYSCALL6(_R_result, _EMNUR_trace_delay);
+  _EMU_SYSCALL1(_R_result, _EMNUR_trace_delay, _R_max);
   return _R_result;
 }
+
+/* Make the bound optional: trace_delay() passes 0, i.e. "emulator default". */
+#define _TRACE_DELAY_ARG(_0, _1, ...) _1
+#define trace_delay(...) \
+    trace_delay_max(_TRACE_DELAY_ARG(_0, ##__VA_ARGS__, 0))
 
 /* Basic libc like functions -- TODO: Replace all of this with something like a single file libc (for example diet-libc) */ 
 

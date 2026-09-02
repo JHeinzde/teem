@@ -180,20 +180,35 @@ static inline int trace_set_name(const void *__buffer, int __size) {
   return _R_result;
 }
 
-/*
- * Delay the trace for a random amount of cycles
+/* Delay the trace by a random number of cycles.
  *
- * Delays the run of the program by a random amount of cycles and will add a 
- * random amount of power draw depending on the length of the stall to the 
- * power trace value
+ * Splices a random number of idle cycles into the power trace, each drawing
+ * the constant power of a nop. The count is drawn uniformly from 0 up to and
+ * including max_cycles, from the generator seeded by PowerTraces.seed, so a
+ * given seed replays the same delays.
  *
- * return -- Always 0, return value can be ignored. 
+ * The countermeasure works purely by misalignment: the point of interest lands
+ * in a different sample in every trace. It adds no amplitude noise -- that is
+ * a separate knob, PowerTraces.noise.sigma in config.yml.
+ *
+ * The bound is optional. trace_delay() leaves it at the emulator's default of
+ * 20 cycles, trace_delay(50) widens the window.
+ *
+ * max_cycles -- Upper bound of the delay, inclusive. 0 or a negative value
+ *               selects the emulator default; oversized values are clamped.
+ * returns    -- The bound actually used, i.e. after defaulting and clamping.
  * */
-static inline int trace_delay() {
+static inline int trace_delay_max(int __max_cycles) {
+  register int _R_max    asm("a0") = __max_cycles;
   register int _R_result asm("a0");
-  _EMU_SYSCALL6(_R_result, _EMNUR_trace_delay);
+  _EMU_SYSCALL1(_R_result, _EMNUR_trace_delay, _R_max);
   return _R_result;
 }
+
+/* Make the bound optional: trace_delay() passes 0, i.e. "emulator default". */
+#define _TRACE_DELAY_ARG(_0, _1, ...) _1
+#define trace_delay(...) \
+    trace_delay_max(_TRACE_DELAY_ARG(_0, ##__VA_ARGS__, 0))
 
 /* Attach a key/value pair to the metadata of the power trace.
  *

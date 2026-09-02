@@ -196,7 +196,7 @@ class MemorySubsystem:
             else:
                 before = Byte(self.memory[address.value])
 
-            POWER_TRACE.append(before.hamming_distance(data))
+            POWER_TRACE.append(before.hamming_distance(data), source="memory_store")
             self.memory[address.value] = value
 
             if cache_side_effects or self.is_addr_cached(address):

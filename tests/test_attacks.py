@@ -57,8 +57,9 @@ class AttacksTest(TestCase):
         # bit that DPA partitions on. Correlation-based CPA survives that;
         # single-bit DPA does not. See
         # docs/superpowers/specs/2026-07-27-cache-refill-leakage-config-design.md
+        # and docs/superpowers/specs/2026-07-29-per-source-weights-and-noise-design.md
         conf = bd.from_yaml("config.yml")
-        conf["PowerTraces"]["cache_refill_leakage"] = False
+        conf["PowerTraces"]["weights"]["cache_refill"] = 0.0
 
         cpu = CPU(conf)
         cpu.load_program_from_file("demo-power/aes-no-delay-first-byte-varies.s")
@@ -90,7 +91,7 @@ class AttacksTest(TestCase):
         rmtree("traces", ignore_errors=True)
 
         conf = bd.from_yaml("config.yml")
-        conf["PowerTraces"]["cache_refill_leakage"] = False
+        conf["PowerTraces"]["weights"]["cache_refill"] = 0.0
 
         cpu = CPU(conf)
         cpu.load_program_from_file("demo-power/aes-no-delay-first-byte-varies.s")

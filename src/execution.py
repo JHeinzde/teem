@@ -471,7 +471,8 @@ class _SlotLoad(_SlotMem):
                                            sign_extend=self.instr_ty.signed)
 
         if mem_result is not None and self.old_dst is not None:
-            POWER_TRACE.append(self.old_dst.hamming_difference(mem_result.value))
+            POWER_TRACE.append(self.old_dst.hamming_difference(mem_result.value),
+                               source="register_load")
 
         return mem_result
 

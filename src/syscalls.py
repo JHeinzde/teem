@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import random
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Union, cast
 
 from .execution import FaultInfo
 from .instructions import RegID
 from .word import Byte, Word
-from .power import POWER_TRACE
+from .power import POWER_TRACE, POWER_VALUES
 
 if TYPE_CHECKING:
     # Avoid circular import.
@@ -19,6 +18,14 @@ SyscallCallback = Callable[['SystemCall'], None]
 
 
 MAX_READWRITE = 4096
+
+
+# Bounds of the random-delay countermeasure, in spliced samples. The default is
+# what sys_trace_delay uses when its argument is left out; the limit only ever
+# catches a nonsensical argument.
+DEFAULT_DELAY_MAX_CYCLES = 20
+
+DELAY_CYCLE_LIMIT = 4096
 
 
 REGISTERED_SYSCALLS: dict[int, SyscallCallback] = {}
@@ -190,10 +197,33 @@ def sys_trace_set_metadata(self: SystemCall):
 
 @syscall(-7)
 def sys_trace_delay(self: SystemCall):
-    # We simulate stalling or a random operation with this syscalls implementation
-    for i in range(random.randint(0, 20)):
-        POWER_TRACE.insert_sample(-30.0 + 60.0 * random.random())
-    self.set_return(Word(0))
+    """
+    Random-delay countermeasure: splice U{0..max_cycles} idle samples.
+
+    a0 -- the largest number of delay cycles that may be drawn. It is optional:
+          0 (what the no-argument spelling of trace_delay() passes) or a
+          negative value selects DEFAULT_DELAY_MAX_CYCLES, and anything above
+          DELAY_CYCLE_LIMIT is clamped, so a caller that leaves garbage in a0
+          costs a bounded number of samples rather than the run.
+
+    Returns the maximum actually used, i.e. after defaulting and clamping.
+
+    Each delay cycle draws the constant power of a nop. The countermeasure
+    works by *misalignment* -- the point of interest lands in a different
+    sample in every trace -- and mixing in a random amplitude on top would
+    leave a student unable to tell which of the two mechanisms broke their
+    attack. Amplitude noise is a separate knob, PowerTraces.noise.sigma.
+    """
+    max_cycles = self.get_arg(0).signed_value
+    if max_cycles <= 0:
+        max_cycles = DEFAULT_DELAY_MAX_CYCLES
+    max_cycles = min(max_cycles, DELAY_CYCLE_LIMIT)
+
+    delay = POWER_TRACE.delay_random.integers(0, max_cycles + 1)  # inclusive
+    for _ in range(delay):
+        POWER_TRACE.insert_sample(POWER_VALUES["nop"], source="instruction")
+
+    self.set_return(Word(max_cycles))
 
 
 def dispatch_syscall(cpu: CPU, fault_info: FaultInfo) -> None:
