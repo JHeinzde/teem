@@ -1,15 +1,22 @@
+"""Power trace capture, and the side-channel analyses that consume the traces."""
+
+from __future__ import annotations
+
 import json
 import os
 import warnings
 from dataclasses import dataclass, asdict
 from functools import wraps
-from typing import List, Tuple, Callable, Dict
 from pathlib import Path
+from typing import Callable, Iterable, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
 
-POWER_VALUES = {
+_T = TypeVar("_T")
+
+# Power drawn per cycle by an instruction of the given kind
+POWER_VALUES: dict[str, float] = {
     "add": 2.0,
     "addi": 2.0,
     "sub": 2.0,
@@ -61,8 +68,6 @@ POWER_VALUES = {
     "fence.i": 10.0,
     "ecall": 1.0,
     "ebreak": 1.0,
-    # `nop` is not an instruction kind the emulator ever executes; the entry is
-    # the idle draw of one delay cycle spliced by sys_trace_delay.
     "nop": 1.0,
     "blts": 3.0,
     "bles": 3.0,
@@ -103,49 +108,41 @@ POWER_VALUES = {
     "th.dcache.ciall": 1.0,
 }
 
-# Per-source scaling of the leakage terms. The sources are on incommensurable
-# scales -- an opcode constant is 0.8-10.0, a load write-back 0-32, a byte store
-# 0-8, and a cache-line refill contributes 0-8 once per byte of the line -- so
-# a fixed mix leaves the term being attacked buried under the loudest one.
-# Weights make that mix, and with it the SNR, a configurable quantity. 0.0
-# disables a source entirely. Keys are the `source` argument of
-# PowerTrace.append; see set_config for validation.
-DEFAULT_LEAKAGE_WEIGHTS = {
-    "instruction":   1.0,
-    "stall":         1.0,
+# Scaling of each leakage term, keyed by the `source` argument of PowerTrace.append.
+# The sources are on incommensurable scales -- an opcode constant is 0.8-10.0, a load
+# write-back 0-32, a byte store 0-8, and a cache-line refill contributes 0-8 once per
+# byte of the line -- so the mix, and with it the SNR, has to be configurable. A weight
+# of 0.0 disables a source entirely.
+DEFAULT_LEAKAGE_WEIGHTS: dict[str, float] = {
+    "instruction": 1.0,
+    "stall": 1.0,
     "register_load": 1.0,
-    "memory_store":  1.0,
-    "cache_refill":  1.0,
+    "memory_store": 1.0,
+    "cache_refill": 1.0,
 }
 
 _POWER_CONFIG_KEYS = frozenset({"stall_power", "weights", "noise", "seed"})
 _NOISE_CONFIG_KEYS = frozenset({"sigma"})
 
-_REMOVED_CONFIG_KEYS = {
-    "random_noise":
-        "noise.sigma (1.0 reproduces random_noise: True)",
-    "cache_refill_leakage":
-        "weights.cache_refill (0.0 reproduces cache_refill_leakage: False)",
-}
 
-
-def power_draw(func):
+def power_draw(func: Callable[..., _T]) -> Callable[..., _T]:
+    """Record the power a slot draws in the cycle the wrapped method executes."""
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs) -> _T:
         result = func(self, *args, **kwargs)
-        pt = POWER_TRACE
         if self.active:
-            pt.append(POWER_VALUES[self.instr_ty.name], source="instruction")
+            POWER_TRACE.append(POWER_VALUES[self.instr_ty.name], source="instruction")
         else:
-            pt.append(pt.stall_power, source="stall")
+            POWER_TRACE.append(POWER_TRACE.stall_power, source="stall")
         return result
 
     return wrapper
 
 
-def cycle_power(func):
+def cycle_power(func: Callable[..., _T]) -> Callable[..., _T]:
+    """Commit the accumulated contributions of the wrapped cycle as one sample."""
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs) -> _T:
         result = func(self, *args, **kwargs)
         POWER_TRACE.flush_sample()
         return result
@@ -156,21 +153,21 @@ def cycle_power(func):
 @dataclass
 class TraceData:
     """
-    TraceData is a dataclass describing a power trace captured by this emulator. 
-    It contains 3 properties:
-        name     -- Name of the power trace as set by the trace_name syscall
-        trace    -- List containing the power measured per single cycle of the CPU
-        metadata -- A dict containing string keys and values set by the
-                    trace_set_metadta syscall in the emulator. Can be used to
-                    record the input values to an algorithm or other relevant
-                    metadata for use in postprocessing of the power traces.
+    A power trace captured by this emulator.
+
+    name     -- Name of the power trace as set by the trace_set_name syscall
+    trace    -- The power measured per single cycle of the CPU
+    metadata -- String keys and values set by the trace_set_metadata syscall. Can be
+                used to record the input values of an algorithm or other metadata
+                relevant to the postprocessing of the power traces.
     """
+
     name: str
-    trace: List[float]
-    metadata: Dict[str, str]
+    trace: list[float]
+    metadata: dict[str, str]
 
 
-def _trace_to_json(data: TraceData, path: os.PathLike):
+def _trace_to_json(data: TraceData, path: os.PathLike) -> None:
     """Serialize a TraceData object to a JSON file."""
     with open(path, "w") as f:
         json.dump(asdict(data), f)
@@ -182,18 +179,30 @@ def _trace_from_json(path: os.PathLike) -> TraceData:
         return TraceData(**json.load(f))
 
 
-class PowerTrace(object):
+class PowerTrace:
     """
     Represents a power trace of the cpu. This is an append only data structure.
     Should be considered as an internal API for the emulator and is not intended
     for actual use
     """
 
-    _instance = None
+    _instance: Optional["PowerTrace"] = None
 
-    def __new__(cls):
+    trace: list[float]
+    sample: list[float]
+    capture: bool
+    name: str
+    metadata: dict[str, str]
+    noise_sigma: float
+    stall_power: float
+    leakage_weights: dict[str, float]
+    seed: Optional[int]
+    random: np.random.Generator
+    delay_random: np.random.Generator
+
+    def __new__(cls) -> "PowerTrace":
         if cls._instance is None:
-            cls._instance = super(PowerTrace, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls.trace = []
             cls.sample = []
             cls.capture = False
@@ -205,19 +214,16 @@ class PowerTrace(object):
             cls.leakage_weights = dict(DEFAULT_LEAKAGE_WEIGHTS)
         return cls._instance
 
-    def set_seed(self, seed):
+    def set_seed(self, seed: Optional[int]) -> None:
         """
         Seed the measurement noise and the random-delay countermeasure.
 
-        Two independent substreams from one seed rather than one shared
-        generator: enabling the delay countermeasure then does not shift the
-        noise draws, so two runs that differ only in the countermeasure stay
-        otherwise comparable. seed=None draws from OS entropy, i.e. an
-        irreproducible run.
+        The two substreams are independent, so enabling the delay countermeasure does
+        not shift the noise draws. A seed of None draws from OS entropy, which makes
+        the run irreproducible.
 
-        Called once per set_config, not once per capture: a program that
-        captures many traces in one run must get fresh noise for each of them,
-        not the same vector repeated.
+        Called once per set_config rather than once per capture, so that a program
+        capturing many traces gets fresh noise for each of them.
         """
         self.seed = seed
         noise_seq, delay_seq = np.random.SeedSequence(seed).spawn(2)
@@ -226,25 +232,20 @@ class PowerTrace(object):
 
     def _apply_noise(self, samples: npt.NDArray) -> npt.NDArray:
         """
-        Add i.i.d. Gaussian measurement noise of the configured sigma.
+        Add Gaussian measurement noise of the configured sigma.
 
-        sigma is in the same (arbitrary) units as the trace itself, so it is
-        read against the amplitude of the leakage terms: the algorithmic leak of
-        the AES demo has a standard deviation of about 1.4.
+        sigma is in the same (arbitrary) units as the trace itself, so it is read
+        against the amplitude of the leakage terms: the algorithmic leak of the AES
+        demo has a standard deviation of about 1.4.
         """
         if self.noise_sigma <= 0.0:
             return samples
         return samples + self.random.normal(0.0, self.noise_sigma, len(samples))
 
-    def append(self, trace_value: float, source: str = "instruction"):
+    def append(self, trace_value: float, source: str = "instruction") -> None:
         """
         Record one power contribution for the current cycle.
 
-        source -- which part of the emulator produced this value. The
-                  configured weight of that source scales it (see
-                  DEFAULT_LEAKAGE_WEIGHTS); a weight of 0.0 drops the
-                  contribution entirely. Suppressing a source does not change
-                  cycle counts or trace length, only sample values.
         """
         if not self.capture:
             return
@@ -253,55 +254,49 @@ class PowerTrace(object):
             return
         self.sample.append(trace_value * weight)
 
-    def insert_sample(self, trace_value: float, source: str = "instruction"):
+    def insert_sample(self, trace_value: float, source: str = "instruction") -> None:
         """
         Append a finished sample that does not correspond to a CPU cycle.
 
-        For countermeasures that splice extra samples into the trace while a
-        cycle is still in flight: system calls run inside CPU.tick(), so the
-        activity of the cycle carrying the ecall is already in the accumulator
-        by then. Going through append() + flush_sample() would commit that
-        activity as part of the spliced sample; insert_sample leaves it pending
-        for the flush at the end of the tick. See sys_trace_delay.
+        For countermeasures that splice extra samples into the trace while a cycle is
+        still in flight: system calls run inside CPU.tick(), so append() followed by
+        flush_sample() would commit the activity of the cycle carrying the ecall as
+        part of the spliced sample. See sys_trace_delay.
 
-        source scales the value exactly as in append(), but a weight of 0.0
-        still appends the (now zero) sample: a spliced sample is a position in
-        the trace, and dropping it would turn an amplitude knob into a timing
-        one.
+        source scales the value as it does in append(), but a weight of 0.0 still
+        appends the now zero sample, because a spliced sample is a position in the
+        trace and dropping it would turn an amplitude knob into a timing one.
         """
         if not self.capture:
             return
         self.trace.append(trace_value * self.leakage_weights.get(source, 1.0))
 
-    def flush_sample(self):
+    def flush_sample(self) -> None:
+        """Commit the contributions of the current cycle as a single sample."""
         if not self.capture:
             return
-        cycle_value = 0.0
-        for s in self.sample:
-            cycle_value += s
 
+        self.trace.append(float(sum(self.sample)))
         self.sample = []
 
-        self.trace.append(cycle_value)
-
-    def set_trace_name(self, name: str):
+    def set_trace_name(self, name: str) -> None:
         self.name = name
 
-    def set_metadata(self, key: str, value: str):
+    def set_metadata(self, key: str, value: str) -> None:
         """
-        Add or overwrite a key/value pair in the metadata that will be attached
-        to the TraceData written by the next stop_capture() call.
+        Add or overwrite a key/value pair in the metadata that will be attached to the
+        TraceData written by the next stop_capture() call.
         """
         self.metadata[key] = value
 
-    def start_capture(self):
+    def start_capture(self) -> int:
         if not self.capture:
             self.capture = True
             self.sample = []
             return 1
         return 0
 
-    def stop_capture(self):
+    def stop_capture(self) -> int:
         """
         Stops the capture of a power trace. It will write the resulting trace into
         a ./traces directory as a JSON-serialized TraceData object.
@@ -312,9 +307,7 @@ class PowerTrace(object):
         if not self.capture:
             return 0
 
-        export = np.asarray(self.trace, dtype=float)
-
-        export = self._apply_noise(export)
+        export = self._apply_noise(np.asarray(self.trace, dtype=float))
 
         if not os.path.exists("traces/"):
             os.mkdir("./traces")
@@ -339,21 +332,18 @@ class PowerTrace(object):
         return 1
 
 
-def set_config(conf):
+def set_config(conf: dict) -> None:
     """
     Apply the PowerTraces section of the config to the PowerTrace singleton.
 
-    Every field is reset, including the ones falling back to a default: the
-    singleton survives CPU construction, so skipping an absent key would leave
-    the previous run's value in place.
+    Every field is reset, including the ones falling back to a default: the singleton
+    survives CPU construction, so skipping an absent key would leave the previous
+    run's value in place.
     """
     pt = PowerTrace()
     section = conf["PowerTraces"]
 
     for key in section:
-        if key in _REMOVED_CONFIG_KEYS:
-            raise ValueError(f"PowerTraces.{key} was removed; "
-                             f"use {_REMOVED_CONFIG_KEYS[key]}")
         if key not in _POWER_CONFIG_KEYS:
             raise ValueError(f"unknown PowerTraces key: {key} "
                              f"(known keys are {sorted(_POWER_CONFIG_KEYS)})")
@@ -411,7 +401,7 @@ def set_config(conf):
 
 POWER_TRACE = PowerTrace()
 
-SBOX = [
+SBOX: list[int] = [
     0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
     0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
     0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
@@ -422,7 +412,7 @@ SBOX = [
     0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
     0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
     0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
-   0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+    0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
     0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
     0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
     0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
@@ -430,22 +420,22 @@ SBOX = [
     0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
 ]
 
-HW = [bin(n).count("1") for n in range(0, 256)]
+HW: list[int] = [bin(n).count("1") for n in range(0, 256)]
 
-
-def mean(X):
+def mean(X: npt.ArrayLike) -> npt.NDArray:
     return np.sum(X, axis=0)/len(X)
 
 
-def std_dev(X, X_bar):
+def std_dev(X: npt.ArrayLike, X_bar: npt.ArrayLike) -> npt.NDArray:
     return np.sqrt(np.sum((X-X_bar)**2, axis=0))
 
 
-def cov(X, X_bar, Y, Y_bar):
+def cov(X: npt.ArrayLike, X_bar: npt.ArrayLike,
+        Y: npt.ArrayLike, Y_bar: npt.ArrayLike) -> npt.NDArray:
     return np.sum((X-X_bar)*(Y-Y_bar), axis=0)
 
 
-def aes_internal(input_byte, key_byte):
+def aes_internal(input_byte: int, key_byte: int) -> int:
     """
     Helper function for AES leakage model.
     Represents the internal state leakage based on S-box output.
@@ -455,10 +445,11 @@ def aes_internal(input_byte, key_byte):
 
 class CPAAttack:
 
-    def __init__(self, trace_data: npt.ArrayLike, leakage_model: Callable = None):
+    def __init__(self, trace_data: Sequence[tuple[int, npt.ArrayLike]],
+                 leakage_model: Optional[Callable[[int, int], int]] = None):
         """
         Constructs a CPAAttack instance.
-        trace_data: An array which per trace contains a tuple with (input byte array, trace)
+        trace_data: A sequence which per trace contains a tuple with (input byte, trace)
         leakage_model: A callable that takes (input_byte, key_guess) and returns an
                        intermediate value in the range 0-255. Its Hamming weight is
                        correlated against the power traces. Defaults to aes_internal.
@@ -466,74 +457,76 @@ class CPAAttack:
         self.trace_data = trace_data
         self.leakage_model = leakage_model if leakage_model is not None else aes_internal
 
-    def attack(self) -> npt.ArrayLike:
+    def attack(self) -> list[float]:
         """
-        Calculates the correlation for each keyguess for the first keybot TODO: Extend to return the correlation for each key byte in the whole key
-        return: A numpy array where the index is the guess for the keybyte and the value at index i is the correlation this keyguess has. Higher values are 
-        better.
+        Calculates the correlation for each keyguess for the first keybyte.
+
+        A sample point that is constant across all traces has a zero standard deviation
+        and no correlation coefficient. It carries no information about the key, so it
+        is scored 0 rather than divided into a NaN, which would lose every comparison
+        and thereby become the reported score of every key guess.
+        return: A list where the index is the guess for the keybyte and the value at
+                index i is the correlation this keyguess has. Higher values are better.
         """
         textin_array = []
         trace_array = []
         for t in range(len(self.trace_data)):
             textin_array.append(self.trace_data[t][0])
-            trace_array.append(self.trace_data[t][1])
+            trace_array.append(np.array(self.trace_data[t][1]))
 
-        maxcpa = [0] * 256
+        maxcpa: list[float] = [0] * 256
         t_bar = mean(trace_array)
         o_t = std_dev(trace_array, t_bar)
 
-        # A sample point with the same value in every trace has a zero standard
-        # deviation and the correlation coefficient is undefined there. Such a
-        # point carries no information about the key, so it scores 0. Dividing
-        # anyway would yield NaN, and since NaN loses every comparison, a single
-        # NaN would silently become the reported score of every key guess.
-        # Deterministic cycles produce these points: the ecall cycle that starts
-        # the capture is identical in every trace.
         usable = o_t > 0
-        #if not usable.all():
-        #  warnings.warn(
-                #        f"{int((~usable).sum())} of {usable.size} sample points are "
-                #"constant across all traces and cannot be correlated; "
-                #"they are scored 0.",
-                #RuntimeWarning,
-                #stacklevel=2,
-                #)
+        if not usable.all():
+            warnings.warn(
+                f"{int((~usable).sum())} of {usable.size} sample points are "
+                "constant across all traces and cannot be correlated; "
+                "they are scored 0.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         for kguess in range(0, 256):
-            hws = np.array([[HW[self.leakage_model(textin, kguess)] for textin in textin_array]]).transpose()
+            hws = np.array([[HW[self.leakage_model(textin, kguess)]
+                             for textin in textin_array]]).transpose()
             hws_bar = mean(hws)
             o_hws = std_dev(hws, hws_bar)
-            #if np.all(o_hws == 0):
-                # The leakage model maps every plaintext to the same Hamming
-                # weight under this guess: there is no hypothesis to correlate.
-            #    maxcpa[kguess] = 0.0
-            #    continue
+            if np.all(o_hws == 0):
+                # The leakage model maps every plaintext to the same Hamming weight
+                # under this guess, so there is no hypothesis to correlate.
+                maxcpa[kguess] = 0.0
+                continue
             correlation = cov(trace_array, t_bar, hws, hws_bar)
             cpaoutput = np.zeros_like(correlation, dtype=float)
             np.divide(correlation, o_t * o_hws, out=cpaoutput, where=usable)
             maxcpa[kguess] = np.max(np.abs(cpaoutput))
+            print(f"{kguess:02x} keyguess", np.max(np.abs(cpaoutput)))
 
         return maxcpa
 
 
 class DPAAttack:
 
-    def __init__(self, trace_data: List[Tuple], leakage_model: Callable):
+    def __init__(self, trace_data: Sequence[tuple[int, npt.ArrayLike]],
+                 leakage_model: Callable[[int, int], int]):
         """
-        Construct a DPAAttack instance 
-        trace_data: An array which per trace contains a tuple with (input byte array, trace)
-        leakage_model: A callable function that takes (input_byte, key_guess) and returns a leakage value
+        Construct a DPAAttack instance.
+        trace_data: A sequence which per trace contains a tuple with (input byte, trace)
+        leakage_model: A callable that takes (input_byte, key_guess) and returns a
+                       leakage value
         """
         self.trace_data = trace_data
         self.leakage_model = leakage_model
 
-    def attack(self) -> npt.ArrayLike:
+    def attack(self) -> list[float]:
         """
-        Calculate the most likley keyguess based on the provided leakage model by building a one and zero list with the leakage model. Returns
-        all possible keybytes in the order of best match according to DPA.
+        Calculate the most likely keyguess based on the provided leakage model by
+        building a one and zero list with the leakage model.
         For now, only attacks the first byte of the key.
-        return: A numpy array where the index is the guess for the keybyte and the value at index i 
-                is the DPA score for that keyguess. Higher values are better.
+        return: A list where the index is the guess for the keybyte and the value at
+                index i is the DPA score for that keyguess. Higher values are better.
         """
         textin_array = []
         trace_array = []
@@ -542,12 +535,12 @@ class DPAAttack:
             trace_array.append(t[1])
         textin_array = np.array(textin_array)
         trace_array = np.array(trace_array)
-        dpa_scores = [0] * 256
+        dpa_scores: list[float] = [0] * 256
         for key_guess in range(256):
             zero_list = []
             one_list = []
             for i in range(len(textin_array)):
-                input_byte = textin_array[i]  # Get first byte of input
+                input_byte = textin_array[i]
                 leakage_value = self.leakage_model(input_byte, key_guess)
                 if leakage_value & 0x1 == 1:
                     one_list.append(trace_array[i])
@@ -564,10 +557,11 @@ class DPAAttack:
 
 class TraceLoader:
 
-    def __init__(self, path):
+    def __init__(self, path: Union[str, os.PathLike]):
         self.path = Path(path)
 
-    def load_traces(self) -> npt.ArrayLike:
+    def load_traces(self) -> npt.NDArray:
+        """Load every trace in the directory, zero-padded to a common length."""
         trace_files = self.path.glob("*.json")
         max_trace_length = 0
         traces = []
@@ -582,7 +576,7 @@ class TraceLoader:
             final_traces.append(np.concatenate([trace, extension]))
         return np.asarray(final_traces)
 
-    def load_trace_data(self) -> List[TraceData]:
+    def load_trace_data(self) -> list[TraceData]:
         """Load every trace in the directory as a TraceData object."""
         return [_trace_from_json(trace_file)
                 for trace_file in self.path.glob("*.json")]
@@ -602,7 +596,7 @@ class TraceViewer:
     matplotlib to be installed.
     """
 
-    def __init__(self, figsize=(20, 10), grid_alpha=0.3):
+    def __init__(self, figsize: tuple[int, int] = (20, 10), grid_alpha: float = 0.3):
         import matplotlib.pyplot as plt
         import matplotlib.cm as cm
         from matplotlib.lines import Line2D
@@ -613,7 +607,7 @@ class TraceViewer:
         self.figsize = figsize
         self.grid_alpha = grid_alpha
 
-    def _new_axes(self, title, xlabel, ylabel):
+    def _new_axes(self, title: str, xlabel: str, ylabel: str) -> tuple:
         "Create a figure/axes pair with the shared title, labels and grid."
         fig, ax = self._plt.subplots(figsize=self.figsize)
         ax.set_title(title)
@@ -622,16 +616,15 @@ class TraceViewer:
         ax.grid(True, alpha=self.grid_alpha)
         return fig, ax
 
-    def plot_overlay(self, traces, title="Power Traces", *,
-                     subtract_mean=False, baseline=False,
-                     xlabel="Trace Clock Cycle", ylabel="Power Value",
-                     legend_label="traces"):
+    def plot_overlay(self, traces: Iterable[npt.ArrayLike], title: str = "Power Traces", *,
+                     subtract_mean: bool = False, baseline: bool = False,
+                     xlabel: str = "Trace Clock Cycle", ylabel: str = "Power Value",
+                     legend_label: str = "traces") -> tuple:
         """
-        Overlay many power traces on a single axis with a viridis colour
-        gradient.
+        Overlay many power traces on a single axis with a viridis colour gradient.
 
-        traces        -- Iterable of 1D power traces. They are truncated to
-                          their common minimum length before plotting.
+        traces        -- Iterable of 1D power traces. They are truncated to their
+                         common minimum length before plotting.
         subtract_mean -- If True, plot each trace minus the mean of all traces.
         baseline      -- If True, draw a dashed horizontal line at y=0.
         return        -- The (figure, axes) pair.
@@ -664,17 +657,18 @@ class TraceViewer:
         self._plt.show()
         return fig, ax
 
-    def plot_group_means(self, groups, title="Mean Traces by Group", *,
-                         label_prefix="group",
-                         xlabel="Trace Clock Cycle", ylabel="Power Value"):
+    def plot_group_means(self, groups: dict, title: str = "Mean Traces by Group", *,
+                         label_prefix: str = "group",
+                         xlabel: str = "Trace Clock Cycle",
+                         ylabel: str = "Power Value") -> tuple:
         """
         Plot the mean trace of each group, one thick line per group.
 
-        groups       -- Mapping of group key -> sequence of traces. Empty
-                         groups are skipped; each group's members are truncated
-                         to their common minimum length before averaging.
+        groups       -- Mapping of group key -> sequence of traces. Empty groups are
+                        skipped; each group's members are truncated to their common
+                        minimum length before averaging.
         label_prefix -- Prefix for each line's legend label, formatted as
-                         "{label_prefix}={key} (n={count})".
+                        "{label_prefix}={key} (n={count})".
         return       -- The (figure, axes) pair.
         """
         populated = {key: members for key, members in groups.items()
@@ -695,8 +689,9 @@ class TraceViewer:
         self._plt.show()
         return fig, ax
 
-    def plot_trace(self, trace, title="Power Trace", *,
-                   xlabel="Trace Clock Cycle", ylabel="Power Value"):
+    def plot_trace(self, trace: npt.ArrayLike, title: str = "Power Trace", *,
+                   xlabel: str = "Trace Clock Cycle",
+                   ylabel: str = "Power Value") -> tuple:
         """
         Plot a single power trace.
 
@@ -708,6 +703,3 @@ class TraceViewer:
         fig.tight_layout()
         self._plt.show()
         return fig, ax
-
-
-

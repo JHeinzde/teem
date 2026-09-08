@@ -36,9 +36,11 @@ class Byte:
         return Word(self.value)
 
     def hamming_weight(self) -> int:
+        """Return the number of set bits in this byte."""
         return self.value.bit_count()
 
     def hamming_distance(self, other: "Byte") -> int:
+        """Return the number of bits in which this byte and `other` differ."""
         return self.__xor__(other).hamming_weight()
 
 

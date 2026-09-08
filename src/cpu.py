@@ -121,8 +121,8 @@ class CPU:
 
         if self._take_snapshots:
             _snapshots.append(copy.deepcopy(self))
-        set_config(config)
 
+        set_config(config)
 
     def load_program_from_file(self, path: str):
         """Loads a program given a file path."""

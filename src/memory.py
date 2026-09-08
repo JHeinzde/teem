@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Iterable, Union
 
@@ -191,10 +193,7 @@ class MemorySubsystem:
 
         if not fault:
             value = data.value
-            if address.value not in self.memory:
-                before = Byte(0)
-            else:
-                before = Byte(self.memory[address.value])
+            before = Byte(self.memory.get(address.value, 0))
 
             POWER_TRACE.append(before.hamming_distance(data), source="memory_store")
             self.memory[address.value] = value

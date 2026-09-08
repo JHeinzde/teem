@@ -122,9 +122,8 @@ class _Slot:
     stage_result: object
     # Source operands
     operands: list[_WordOrSlot]
-    # Whether this slot's functional unit did work in the current cycle, as opposed to
-    # waiting on an operand, a hazard, or a preceding instruction. Set by `_tick_execute`
-    # once it is past its blocked-checks; read by the `power_draw` decorator.
+    # Whether this slot did work in the current cycle, as opposed to waiting on an
+    # operand, a hazard or a preceding instruction. Read by the `power_draw` decorator
     active: bool
 
     def __init__(self, args: _ArgsSlot):
@@ -134,9 +133,6 @@ class _Slot:
         self.stage_result = None
         self.operands = args.source_operands
         self.active = False
-
-    def power(self) -> float:
-        return self.instr.ty.power_draw()
 
     @property
     def executing(self) -> bool:
@@ -200,12 +196,10 @@ class _Slot:
         return result
 
     def _tick_execute(self) -> Optional[Word]:
-        raise NotImplementedError(
-            "Must be overwritten by a concrete slot type")
+        raise NotImplementedError("Must be overwritten by a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
-        raise NotImplementedError(
-            "Must be overwritten by a concrete slot type")
+        raise NotImplementedError("Must be overwritten by a concrete slot type")
 
 
 class _SlotFaulting(_Slot):
@@ -255,8 +249,7 @@ class _SlotFaulting(_Slot):
 
     def is_faulting(self) -> bool:
         """Check if this instruction causes a fault."""
-        raise NotImplementedError(
-            "Must be overwritten by a concrete slot type")
+        raise NotImplementedError("Must be overwritten by a concrete slot type")
 
     def populate_fault_info(self, info: FaultInfo):
         """Populate information about the fault."""
@@ -364,8 +357,7 @@ class _SlotMem(_SlotFaulting):
 
     def _perform_access(self) -> Optional[MemResult]:
         """Perform the memory operation and return its result if it is done."""
-        raise NotImplementedError(
-            "Must be overwritten by a concrete slot type")
+        raise NotImplementedError("Must be overwritten by a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
         assert self.result is not None
@@ -414,8 +406,7 @@ class _SlotCalc(_Slot):
         return self._compute_result(cast(List[Word], self.operands))
 
     def _compute_result(self, operands: List[Word]) -> Word:
-        raise NotImplementedError(
-            "Must be overwritten for a concrete slot type")
+        raise NotImplementedError("Must be overwritten for a concrete slot type")
 
     def _tick_retire(self) -> Optional[tuple[Optional[_FaultState]]]:
         # Retire immediately without a fault
@@ -449,16 +440,18 @@ class _SlotLoad(_SlotMem):
     """An occupied slot in the Reservation Station, storing a load instruction."""
 
     instr_ty: InstrLoad
-    old_dst: Word 
+    # Value the destination register held before the load, for the Hamming distance
+    # of the write-back
+    old_dst: Word
 
     def __init__(self, args: _ArgsSlot):
         super().__init__(args)
-        dst = self.instr.destination()
-        if dst is not None and dst != 0: 
-            old = self.exe._registers[dst]
 
-            # If old is not instance of word the register is already inflight issued to another instruction, se we assume 
-            # it is 0 for the time being 
+        dst = self.instr.destination()
+        if dst is not None and dst != 0:
+            old = self.exe._registers[dst]
+            # A register that is not a Word is still in flight for another instruction,
+            # so we assume it is zero for the time being
             self.old_dst = old if isinstance(old, Word) else Word(0)
         else:
             self.old_dst = Word(0)
@@ -470,7 +463,7 @@ class _SlotLoad(_SlotMem):
         mem_result = self.memory.read_word(self.address, width=self.instr_ty.width,
                                            sign_extend=self.instr_ty.signed)
 
-        if mem_result is not None and self.old_dst is not None:
+        if mem_result is not None:
             POWER_TRACE.append(self.old_dst.hamming_difference(mem_result.value),
                                source="register_load")
 
@@ -668,7 +661,7 @@ class _SlotCyclecount(_Slot):
 
     instr_ty: InstrCyclecount
 
-    # Refeence to execution engine, so we can query the cycle counter
+    # Reference to execution engine, so we can query the cycle counter
     exe: "ExecutionEngine"
 
     def __init__(self, args: _ArgsSlot):
@@ -701,8 +694,7 @@ class _SlotSerializing(_SlotFaulting):
         super().__init__(args)
 
         # IDs of all slots that are not empty
-        self.preceding = {_SlotID(i) for i, slot in enumerate(
-            args.exe._slots) if slot is not None}
+        self.preceding = {_SlotID(i) for i, slot in enumerate(args.exe._slots) if slot is not None}
 
         assert args.exe._frontend is not None
         self.frontend = args.exe._frontend
@@ -850,8 +842,7 @@ class ExecutionEngine:
         source_operands = self._source_operands(instr)
 
         # Create new slot object
-        args = _ArgsSlot(self, instr, source_operands,
-                         prediction, addr_prediction)
+        args = _ArgsSlot(self, instr, source_operands, prediction, addr_prediction)
         new_slot = _get_slot_type(instr.ty)(args)
 
         # Try to put new slot in a free slot
@@ -859,7 +850,7 @@ class ExecutionEngine:
             if slot is not None:
                 continue
 
-            # Found a free slot, populat it
+            # Found a free slot, populate it
             self._slots[i] = new_slot
 
             # Mark destination register as waiting on new slot

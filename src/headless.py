@@ -4,14 +4,8 @@ from benedict import benedict
 from .cpu import CPU
 
 
-def main():
-    """
-    Execute a programm via the command-line without any GUI.
-
-    return -- 0 if the programm executed successfully
-              1 if the programm does not exist or execution
-                was not successfull.
-    """
+def main() -> None:
+    """Execute a program from the command line, without any GUI."""
     path = "config.yml"
     config = benedict.from_yaml(path)
 

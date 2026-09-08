@@ -45,74 +45,45 @@ class AttacksTest(TestCase):
         leaked = cpu._exec_engine._registers[1].value // 0x10
         self.assertEqual(leaked, secret)
 
-    def test_dpa(self):
-        """Test a simpel one byte dpa attack"""
-
-        # stop_capture() appends to an existing traces/<name>.json, so a
-        # leftover directory from an earlier run would double every trace.
+    def _capture_aes_traces(self):
+        """Run the AES demo and return its traces as (input byte, trace) tuples."""
+        # stop_capture() appends to an existing traces/<name>.json, so a leftover
+        # directory from an earlier run would double every trace.
         rmtree("traces", ignore_errors=True)
 
-        # The cache-line refill leak adds up to four 0-32 Hamming distances to
-        # the same cycle as the 0-8 algorithmic leak, which buries the single
-        # bit that DPA partitions on. Correlation-based CPA survives that;
-        # single-bit DPA does not. See
-        # docs/superpowers/specs/2026-07-27-cache-refill-leakage-config-design.md
-        # and docs/superpowers/specs/2026-07-29-per-source-weights-and-noise-design.md
+        # The cache-line refill leak adds up to four 0-32 Hamming distances to the same
+        # cycle as the 0-8 algorithmic leak, which buries the single bit that DPA
+        # partitions on. Correlation-based CPA survives that, single-bit DPA does not.
         conf = bd.from_yaml("config.yml")
         conf["PowerTraces"]["weights"]["cache_refill"] = 0.0
 
         cpu = CPU(conf)
         cpu.load_program_from_file("demo-power/aes-no-delay-first-byte-varies.s")
 
-        while True:
-            if not (info := cpu.tick()).executing_program:
-                break
-        key_byte = 0x1A
+        while cpu.tick().executing_program:
+            pass
 
-        # load the resulting traces and convert them into a structure that can be used by the DPAAttack class
         traces = TraceLoader("traces").load_trace_data()
-        converted_traces = []
-        for trace in traces:
-            converted_traces.append(
-                (bytes(trace.metadata["input"], "latin-1")[0], trace.trace)
-            )
-        dpa = DPAAttack(converted_traces, aes_internal)
-        result = dpa.attack()
-        recovered_key_byte = np.argmax(result)
+        return [(bytes(trace.metadata["input"], "latin-1")[0], trace.trace)
+                for trace in traces]
 
-        self.assertEqual(key_byte, recovered_key_byte)
-        rmtree(
-            "traces"
-        )  # Cleanup traces directory, which would be dangling after this test.
+    def test_dpa(self):
+        """Test a simple one byte dpa attack."""
+        key_byte = 0x1A
+        traces = self._capture_aes_traces()
+
+        result = DPAAttack(traces, aes_internal).attack()
+
+        self.assertEqual(key_byte, np.argmax(result))
+        # Cleanup traces directory, which would be dangling after this test.
+        rmtree("traces")
 
     def test_cpa(self):
-        """Test a simple one byte cpa attack"""
-
-        rmtree("traces", ignore_errors=True)
-
-        conf = bd.from_yaml("config.yml")
-        conf["PowerTraces"]["weights"]["cache_refill"] = 0.0
-
-        cpu = CPU(conf)
-        cpu.load_program_from_file("demo-power/aes-no-delay-first-byte-varies.s")
-
-        while True:
-            if not (info := cpu.tick()).executing_program:
-                break
+        """Test a simple one byte cpa attack."""
         key_byte = 0x1A
+        traces = self._capture_aes_traces()
 
-        # load the resulting traces and convert them into a structure that can be used by the DPAAttack class
-        traces = TraceLoader("traces").load_trace_data()
-        converted_traces = []
-        for trace in traces:
-            converted_traces.append(
-                (bytes(trace.metadata["input"], "latin-1")[0], trace.trace)
-            )
-        cpa = CPAAttack(converted_traces, aes_internal)
-        result = cpa.attack()
-        recovered_key_byte = np.argmax(result)
+        result = CPAAttack(traces, aes_internal).attack()
 
-        self.assertEqual(key_byte, recovered_key_byte)
-        rmtree(
-            "traces"
-        )  # Cleanup traces directory, which would be dangling after this test.
+        self.assertEqual(key_byte, np.argmax(result))
+        rmtree("traces")

@@ -20,11 +20,8 @@ SyscallCallback = Callable[['SystemCall'], None]
 MAX_READWRITE = 4096
 
 
-# Bounds of the random-delay countermeasure, in spliced samples. The default is
-# what sys_trace_delay uses when its argument is left out; the limit only ever
-# catches a nonsensical argument.
+# Bounds of the random-delay countermeasure, in spliced samples
 DEFAULT_DELAY_MAX_CYCLES = 20
-
 DELAY_CYCLE_LIMIT = 4096
 
 
@@ -144,31 +141,37 @@ def sys_read(self: SystemCall):
 
 @syscall(-4)
 def sys_trace_start(self: SystemCall):
+    "Start capturing a power trace."
     self.set_return(POWER_TRACE.start_capture())
 
 
 @syscall(-5)
 def sys_trace_stop(self: SystemCall):
+    "Stop the running capture and write its trace to ./traces."
     self.set_return(POWER_TRACE.stop_capture())
 
 
 @syscall(-6)
 def sys_trace_set_name(self: SystemCall):
+    "Name the trace the next capture writes."
     bufaddr, buffsize = self.get_arg(0), self.get_arg(1).value
+
     text_bytes: list[int] = []
-    for i in range(min(buffsize-1, MAX_READWRITE)):
+    for i in range(min(buffsize - 1, MAX_READWRITE)):
         mem_result = self.cpu._mem.read_byte(bufaddr + Word(i))
         if mem_result.fault:
             self.set_return(Word(-1))
             return
 
         text_bytes.append(mem_result.value.value)
-        POWER_TRACE.set_trace_name(bytes(text_bytes).decode("latin-1"))
-        self.set_return(Word(len(text_bytes)))
+
+    POWER_TRACE.set_trace_name(bytes(text_bytes).decode("latin-1"))
+    self.set_return(Word(len(text_bytes)))
 
 
 @syscall(-8)
 def sys_trace_set_metadata(self: SystemCall):
+    "Attach a key/value pair to the trace of the next capture."
     key_addr, key_size = self.get_arg(0), self.get_arg(1).value
     value_addr, value_size = self.get_arg(2), self.get_arg(3).value
 
@@ -200,27 +203,23 @@ def sys_trace_delay(self: SystemCall):
     """
     Random-delay countermeasure: splice U{0..max_cycles} idle samples.
 
-    a0 -- the largest number of delay cycles that may be drawn. It is optional:
-          0 (what the no-argument spelling of trace_delay() passes) or a
-          negative value selects DEFAULT_DELAY_MAX_CYCLES, and anything above
-          DELAY_CYCLE_LIMIT is clamped, so a caller that leaves garbage in a0
-          costs a bounded number of samples rather than the run.
+    a0 -- the largest number of delay cycles that may be drawn. It is optional: a
+          value of 0 or less selects DEFAULT_DELAY_MAX_CYCLES, and anything above
+          DELAY_CYCLE_LIMIT is clamped, so garbage left in a0 costs a bounded number
+          of samples rather than the run.
 
-    Returns the maximum actually used, i.e. after defaulting and clamping.
+    Every delay cycle draws the constant power of a nop, because the countermeasure
+    works by misalignment alone. Amplitude noise is a separate knob,
+    PowerTraces.noise.sigma.
 
-    Each delay cycle draws the constant power of a nop. The countermeasure
-    works by *misalignment* -- the point of interest lands in a different
-    sample in every trace -- and mixing in a random amplitude on top would
-    leave a student unable to tell which of the two mechanisms broke their
-    attack. Amplitude noise is a separate knob, PowerTraces.noise.sigma.
+    return: The maximum actually used, i.e. after defaulting and clamping.
     """
     max_cycles = self.get_arg(0).signed_value
     if max_cycles <= 0:
         max_cycles = DEFAULT_DELAY_MAX_CYCLES
     max_cycles = min(max_cycles, DELAY_CYCLE_LIMIT)
 
-    delay = POWER_TRACE.delay_random.integers(0, max_cycles + 1)  # inclusive
-    for _ in range(delay):
+    for _ in range(POWER_TRACE.delay_random.integers(0, max_cycles + 1)):
         POWER_TRACE.insert_sample(POWER_VALUES["nop"], source="instruction")
 
     self.set_return(Word(max_cycles))

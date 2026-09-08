@@ -96,14 +96,10 @@ class CacheLine:
             This function does not have a return value.
         """
 
-        if offset in self.data:
-            before = self.data[offset]
-        else:
-            before = 0
-
+        before = self.data[offset] if offset in self.data else 0
         if before is None:
             before = 0
-        # Writing data too a cache should definitly have consequences for the power trace
+
         POWER_TRACE.append((before ^ data).bit_count(), source="cache_refill")
         self.data[offset] = data
 
