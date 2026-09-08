@@ -15,7 +15,9 @@ import numpy.typing as npt
 
 _T = TypeVar("_T")
 
-# Power drawn per cycle by an instruction of the given kind
+# Power drawn per cycle by an instruction of the given kind. The scale is arbitrary
+# but ordered by the average current an instruction draws on real hardware, so
+# instructions that measure alike are valued alike.
 POWER_VALUES: dict[str, float] = {
     "add": 2.0,
     "addi": 2.0,
@@ -37,8 +39,8 @@ POWER_VALUES: dict[str, float] = {
     "slti": 1.5,
     "sltu": 1.5,
     "sltiu": 1.5,
-    "lui": 1.0,
-    "auipc": 1.0,
+    "lui": 2.0,
+    "auipc": 2.0,
     "mul": 4.5,
     "mulh": 4.5,
     "mulhu": 4.5,
@@ -47,6 +49,11 @@ POWER_VALUES: dict[str, float] = {
     "divu": 5.0,
     "rem": 4.5,
     "remu": 4.5,
+    "lw": 2.0,
+    "lh": 2.0,
+    "lhu": 2.0,
+    "lb": 2.0,
+    "lbu": 2.0,
     "sw": 2.0,
     "sh": 2.0,
     "sb": 2.0,
@@ -65,47 +72,43 @@ POWER_VALUES: dict[str, float] = {
     "jal": 3.0,
     "jalr": 3.0,
     "rdcycle": 10.0,
+    # Serializing instructions all flush the pipeline, so they cost the same.
     "fence.i": 10.0,
-    "ecall": 1.0,
-    "ebreak": 1.0,
-    "nop": 1.0,
-    "blts": 3.0,
-    "bles": 3.0,
-    "bgts": 3.0,
-    "bges": 3.0,
-    "li": 1.0,
-    "mv": 1.0,
-    "not": 0.8,
-    "neg": 0.8,
-    "seqz": 1.0,
-    "snez": 1.0,
-    "sltz": 1.0,
-    "sgtz": 1.0,
-    "lw": 2.0,
-    "lh": 2.0,
-    "lhu": 1.0,
-    "lb": 1.0,
-    "lbu": 1.0,
-    "beqz": 1.0,
-    "bnez": 1.0,
-    "bltz": 1.0,
-    "blez": 1.0,
-    "bgtz": 1.0,
-    "bgez": 1.0,
-    "bltuz": 1.0,
-    "bleuz": 1.0,
-    "bgtuz": 1.0,
-    "bgeuz": 1.0,
-    "j": 1.0,
-    "jr": 1.0,
-    "ret": 1.0,
-    "call": 1.0,
-    "tail": 1.0,
-    "flush": 1.0,
-    "flushall": 1.0,
-    "rdtsc": 1.0,
-    "fence": 1.0,
-    "th.dcache.ciall": 1.0,
+    "ecall": 10.0,
+    "ebreak": 10.0,
+    "nop": 2.0,
+    "li": 2.0,      # addi
+    "mv": 2.0,      # addi
+    "not": 0.8,     # xori
+    "neg": 2.0,     # sub
+    "seqz": 1.5,    # sltiu
+    "snez": 1.5,    # sltu
+    "sltz": 1.5,    # slt
+    "sgtz": 1.5,    # slt
+    "blts": 3.0,    # blt
+    "bles": 3.0,    # ble
+    "bgts": 3.0,    # bgt
+    "bges": 3.0,    # bge
+    "beqz": 3.0,    # beq
+    "bnez": 3.0,    # bne
+    "bltz": 3.0,    # blt
+    "blez": 3.0,    # ble
+    "bgtz": 3.0,    # bgt
+    "bgez": 3.0,    # bge
+    "bltuz": 3.0,   # bltu
+    "bleuz": 3.0,   # bleu
+    "bgtuz": 3.0,   # bgtu
+    "bgeuz": 3.0,   # bgeu
+    "j": 3.0,       # jal
+    "jr": 3.0,      # jalr
+    "ret": 3.0,     # jalr
+    "call": 3.0,    # jal
+    "tail": 3.0,    # jal
+    "flush": 10.0,          # cbo.flush
+    "flushall": 10.0,       # x.flushall
+    "rdtsc": 10.0,          # rdcycle
+    "fence": 10.0,          # fence.i
+    "th.dcache.ciall": 10.0,  # x.flushall
 }
 
 # Scaling of each leakage term, keyed by the `source` argument of PowerTrace.append.
